@@ -1,0 +1,10 @@
+export const DEFAULT_MAX_PAGES = 1000;
+export const DEFAULT_DELAY_MS = 500;
+export const DEFAULT_TIMEOUT_MS = 10000;
+export const DEFAULT_CONCURRENCY = 1;
+export const DEFAULT_BURST_DELAY_MS = 0;
+export const DEFAULT_OUTPUT_PATH = "./h1-report.json";
+export const DEFAULT_SITEMAP_URL_SUFFIX = "/sitemap.xml";
+export const DEFAULT_MAX_SITEMAPS = 20;
+export const DEFAULT_MAX_SITEMAP_URLS = 10000;
+export const DEFAULT_USER_AGENT = "h1-crawler/2.0 (+https://local-script)";
