@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "tsx src/cli.ts --help",
     "crawl": "tsx src/cli.ts",
+    "analyze": "tsx src/analyze.ts",
     "build": "tsc",
     "start": "node dist/cli.js"
   },
