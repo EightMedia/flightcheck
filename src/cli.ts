@@ -36,6 +36,7 @@ async function main(): Promise<void> {
     .option("--sitemap-start", "Seed crawl with sitemap URLs", false)
     .option("--sitemap-url <url>", "Custom sitemap URL")
     .option("--respect-robots-txt", "Respect robots.txt disallow rules", false)
+    .option("--quiet", "Suppress Crawlee info/statistics logs (only warnings and errors)", false)
     .option("--exclude <patterns>", "Exclude patterns (comma-separated, repeatable)", (value, acc: string[]) => {
       acc.push(value);
       return acc;
@@ -87,6 +88,7 @@ async function main(): Promise<void> {
         seedUrls,
         excludePatterns,
         respectRobotsTxt: opts.respectRobotsTxt as boolean,
+        quiet: opts.quiet as boolean,
       });
 
       process.stdout.write(

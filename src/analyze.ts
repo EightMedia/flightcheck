@@ -26,6 +26,7 @@ const recordSchema = z.object({
   metaTitle: z.string(),
   metaDescription: z.string(),
   robots: z.string(),
+  template: z.string().optional().default(""),
   charset: z.string(),
   language: z.string(),
   colorScheme: z.string(),
@@ -93,12 +94,41 @@ function isMissingValue(value: string | string[]): boolean {
   return value.trim() === "";
 }
 
+function parseRobotsDirectives(robots: string): Set<string> {
+  return new Set(
+    robots
+      .toLowerCase()
+      .split(/[\s,]+/)
+      .map((token) => token.trim())
+      .filter((token) => token.length > 0)
+  );
+}
+
+function collectWarnings(record: RecordType): string[] {
+  const warnings: string[] = [];
+  const directives = parseRobotsDirectives(record.robots);
+
+  if (directives.has("noindex") || directives.has("none")) {
+    warnings.push(`Page is set to noindex (robots: "${record.robots}") — search engines are told not to index it.`);
+  }
+  if (directives.has("nofollow") || directives.has("none")) {
+    warnings.push(`Page is set to nofollow (robots: "${record.robots}") — search engines are told not to follow its links.`);
+  }
+
+  return warnings;
+}
+
 function buildMarkdown(inputPath: string, records: RecordType[], includeOnlyErrors: boolean): string {
   const perFieldMissingCount = new Map<string, number>();
+  const perWarningCount = new Map<string, number>();
+  let pagesWithWarnings = 0;
   const perUrlTodos: Array<{
     url: string;
     status: number | null;
+    template: string;
     missingFields: string[];
+    warnings: string[];
+    warningKeys: string[];
     note?: string;
     error?: string;
   }> = [];
@@ -112,7 +142,9 @@ function buildMarkdown(inputPath: string, records: RecordType[], includeOnlyErro
       missingFields.unshift("fetch");
     }
 
-    if (includeOnlyErrors && !record.error && missingFields.length === 0) {
+    const warnings = collectWarnings(record);
+
+    if (includeOnlyErrors && !record.error && missingFields.length === 0 && warnings.length === 0) {
       continue;
     }
 
@@ -120,16 +152,37 @@ function buildMarkdown(inputPath: string, records: RecordType[], includeOnlyErro
       perFieldMissingCount.set(field, (perFieldMissingCount.get(field) ?? 0) + 1);
     }
 
+    const warningKeys: string[] = [];
+    if (warnings.length > 0) {
+      pagesWithWarnings += 1;
+      const directives = parseRobotsDirectives(record.robots);
+      if (directives.has("noindex") || directives.has("none")) {
+        warningKeys.push("noindex");
+      }
+      if (directives.has("nofollow") || directives.has("none")) {
+        warningKeys.push("nofollow");
+      }
+      for (const key of warningKeys) {
+        perWarningCount.set(key, (perWarningCount.get(key) ?? 0) + 1);
+      }
+    }
+
     perUrlTodos.push({
       url: record.url,
       status: record.status,
+      template: record.template.trim(),
       missingFields,
+      warnings,
+      warningKeys,
       note: record.note,
       error: record.error,
     });
   }
 
+  const hasTemplates = perUrlTodos.some((item) => item.template !== "");
+
   const sortedFieldCounts = [...perFieldMissingCount.entries()].sort((a, b) => b[1] - a[1]);
+  const sortedWarningCounts = [...perWarningCount.entries()].sort((a, b) => b[1] - a[1]);
   const now = new Date().toISOString();
 
   const lines: string[] = [
@@ -139,16 +192,74 @@ function buildMarkdown(inputPath: string, records: RecordType[], includeOnlyErro
     `Input: \`${inputPath}\``,
     `Pages analyzed: ${records.length}`,
     `Pages with TODOs: ${perUrlTodos.length}`,
+    `Pages with warnings: ${pagesWithWarnings}`,
     "",
-    "## Priority overview",
+    "## Important warnings",
     "",
   ];
+
+  if (sortedWarningCounts.length === 0) {
+    lines.push("- No important warnings found.");
+  } else {
+    for (const [warning, count] of sortedWarningCounts) {
+      lines.push(`- [ ] ${warning}: set on ${count} page(s)`);
+    }
+  }
+
+  lines.push("", "## Priority overview", "");
 
   if (sortedFieldCounts.length === 0) {
     lines.push("- No missing attributes found.");
   } else {
     for (const [field, count] of sortedFieldCounts) {
       lines.push(`- [ ] ${field}: missing on ${count} page(s)`);
+    }
+  }
+
+  if (hasTemplates) {
+    lines.push("", "## TODOs by template", "");
+
+    const groups = new Map<string, typeof perUrlTodos>();
+    for (const item of perUrlTodos) {
+      const key = item.template === "" ? "(no template)" : item.template;
+      const group = groups.get(key);
+      if (group) {
+        group.push(item);
+      } else {
+        groups.set(key, [item]);
+      }
+    }
+
+    const sortedGroups = [...groups.entries()].sort((a, b) => b[1].length - a[1].length);
+
+    for (const [template, items] of sortedGroups) {
+      const groupFieldCount = new Map<string, number>();
+      const groupWarningCount = new Map<string, number>();
+      for (const item of items) {
+        for (const field of item.missingFields) {
+          groupFieldCount.set(field, (groupFieldCount.get(field) ?? 0) + 1);
+        }
+        for (const key of item.warningKeys) {
+          groupWarningCount.set(key, (groupWarningCount.get(key) ?? 0) + 1);
+        }
+      }
+
+      lines.push(`### Template: ${template} (${items.length} page(s))`, "");
+
+      const sortedGroupWarnings = [...groupWarningCount.entries()].sort((a, b) => b[1] - a[1]);
+      for (const [warning, count] of sortedGroupWarnings) {
+        lines.push(`- [ ] Warning ${warning}: set on ${count}/${items.length} page(s)`);
+      }
+
+      const sortedGroupFields = [...groupFieldCount.entries()].sort((a, b) => b[1] - a[1]);
+      if (sortedGroupFields.length === 0) {
+        lines.push("- No missing attributes for this template.");
+      } else {
+        for (const [field, count] of sortedGroupFields) {
+          lines.push(`- [ ] ${field}: missing on ${count}/${items.length} page(s)`);
+        }
+      }
+      lines.push("");
     }
   }
 
@@ -162,11 +273,15 @@ function buildMarkdown(inputPath: string, records: RecordType[], includeOnlyErro
       lines.push(`### ${item.url}`);
       lines.push("");
       lines.push(`- Status: \`${statusValue}\``);
+      if (item.template) lines.push(`- Template: \`${item.template}\``);
       if (item.note) lines.push(`- Note: ${item.note}`);
       if (item.error) lines.push(`- Error: ${item.error}`);
-      if (item.missingFields.length === 0) {
+      for (const warning of item.warnings) {
+        lines.push(`- [ ] Warning: ${warning}`);
+      }
+      if (item.missingFields.length === 0 && item.warnings.length === 0) {
         lines.push("- [ ] Review manually");
-      } else {
+      } else if (item.missingFields.length > 0) {
         lines.push(`- [ ] Fix missing attributes: ${item.missingFields.join(", ")}`);
       }
       lines.push("");
@@ -179,7 +294,7 @@ function buildMarkdown(inputPath: string, records: RecordType[], includeOnlyErro
   lines.push("- [ ] Confirm TODO count decreases to zero for target pages.");
   lines.push("");
 
-  return lines.join("\n");
+  return `${lines.join("\n").replace(/\n{3,}/g, "\n\n").trimEnd()}\n`;
 }
 
 async function main(): Promise<void> {

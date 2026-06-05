@@ -1,4 +1,4 @@
-import { CheerioCrawler, RequestQueue } from "crawlee";
+import { CheerioCrawler, RequestQueue, log, LogLevel } from "crawlee";
 import pino from "pino";
 import {
   DEFAULT_BURST_DELAY_MS,
@@ -25,6 +25,7 @@ export type RunCrawlerOptions = {
   seedUrls?: string[];
   excludePatterns?: string[];
   respectRobotsTxt?: boolean;
+  quiet?: boolean;
 };
 
 export async function runCrawler(options: RunCrawlerOptions): Promise<{ records: VerificationRecord[]; interrupted: boolean }> {
@@ -39,6 +40,10 @@ export async function runCrawler(options: RunCrawlerOptions): Promise<{ records:
   const excludePatterns = options.excludePatterns ?? [];
   const seedUrls = (options.seedUrls ?? [startUrl]).map((url) => normalizeUrl(url));
   const respectRobotsTxt = options.respectRobotsTxt ?? false;
+  const quiet = options.quiet ?? false;
+  if (quiet) {
+    log.setLevel(LogLevel.WARNING);
+  }
   const robotsPolicy = respectRobotsTxt ? await loadRobotsPolicy(origin, timeoutMs) : null;
 
   const requestQueue = await RequestQueue.open();
@@ -74,7 +79,7 @@ export async function runCrawler(options: RunCrawlerOptions): Promise<{ records:
     maxRequestsPerCrawl: maxPages,
     maxConcurrency: concurrency,
     requestHandlerTimeoutSecs: Math.ceil(timeoutMs / 1000),
-    requestHandler: async ({ request, body, contentType, enqueueLinks, response }) => {
+    requestHandler: async ({ request, body, contentType, response }) => {
       if (interrupted) return;
       if (delayMs > 0) {
         await sleep(delayMs);
@@ -113,10 +118,8 @@ export async function runCrawler(options: RunCrawlerOptions): Promise<{ records:
           await requestQueue.addRequest({ url: normalized, uniqueKey: normalized });
         }
       }
-
-      await enqueueLinks({ strategy: "same-hostname" });
     },
-    failedRequestHandler: async ({ request, error }) => {
+    failedRequestHandler: async ({ request }, error) => {
       const currentUrl = normalizeUrl(request.loadedUrl ?? request.url);
       const record = extractVerificationRecord("", currentUrl, null, "");
       record.error = error instanceof Error ? error.message : "Unknown error";

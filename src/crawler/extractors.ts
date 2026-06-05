@@ -45,6 +45,7 @@ export function extractVerificationRecord(
   const h1 = textOrEmpty($("h1").first().text());
   const metaDescription = attrOrEmpty($, 'meta[name="description"]', "content");
   const robots = attrOrEmpty($, 'meta[name="robots"]', "content");
+  const template = attrOrEmpty($, 'meta[name="template"]', "content");
   const colorScheme = attrOrEmpty($, 'meta[name="color-scheme"]', "content");
   const themeColor = attrOrEmpty($, 'meta[name="theme-color"]', "content");
   const viewport = attrOrEmpty($, 'meta[name="viewport"]', "content");
@@ -94,6 +95,7 @@ export function extractVerificationRecord(
     metaTitle,
     metaDescription,
     robots,
+    template,
     charset,
     language,
     colorScheme,
@@ -107,6 +109,55 @@ export function extractVerificationRecord(
     twitter,
     tracking,
   };
+}
+
+const NON_HTML_EXTENSIONS = new Set([
+  "pdf",
+  "zip",
+  "rar",
+  "gz",
+  "tar",
+  "7z",
+  "doc",
+  "docx",
+  "xls",
+  "xlsx",
+  "ppt",
+  "pptx",
+  "csv",
+  "rtf",
+  "png",
+  "jpg",
+  "jpeg",
+  "gif",
+  "webp",
+  "svg",
+  "ico",
+  "bmp",
+  "tiff",
+  "mp3",
+  "wav",
+  "ogg",
+  "mp4",
+  "webm",
+  "mov",
+  "avi",
+  "mkv",
+  "woff",
+  "woff2",
+  "ttf",
+  "eot",
+  "dmg",
+  "exe",
+  "apk",
+]);
+
+function hasNonHtmlExtension(pathname: string): boolean {
+  const lastSegment = pathname.split("/").pop() ?? "";
+  const dotIndex = lastSegment.lastIndexOf(".");
+  if (dotIndex === -1) return false;
+  const extension = lastSegment.slice(dotIndex + 1).toLowerCase();
+  return NON_HTML_EXTENSIONS.has(extension);
 }
 
 export function extractInternalLinks(html: string, currentUrl: string, origin: string): Set<string> {
@@ -129,6 +180,7 @@ export function extractInternalLinks(html: string, currentUrl: string, origin: s
       const absolute = new URL(rawHref, currentUrl);
       if (absolute.origin !== origin) return;
       if (absolute.protocol !== "http:" && absolute.protocol !== "https:") return;
+      if (hasNonHtmlExtension(absolute.pathname)) return;
       absolute.hash = "";
       absolute.search = "";
       links.add(absolute.toString());
