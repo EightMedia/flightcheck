@@ -2,6 +2,7 @@
   "name": "@eightmedia/flightcheck",
   "version": "0.1.0",
   "type": "module",
+  "license": "MIT",
   "description": "Website pre-launch crawler: verifies SEO/metadata/tracking and scans for exposed API keys and secrets.",
   "repository": {
     "type": "git",
