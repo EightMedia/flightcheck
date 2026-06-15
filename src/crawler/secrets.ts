@@ -7,6 +7,7 @@ type SecretPattern = {
   regex: RegExp;
   group?: number; // capture group holding the value; default = whole match
   generic?: boolean; // generic patterns skip values already matched by a specific one
+  display?: string; // fixed placeholder for masked field (used when the match itself is boilerplate)
 };
 
 const PATTERNS: SecretPattern[] = [
@@ -20,6 +21,7 @@ const PATTERNS: SecretPattern[] = [
     provider: "generic",
     severity: "critical",
     regex: /-----BEGIN (?:RSA |EC |OPENSSH |DSA |PGP )?PRIVATE KEY-----/g,
+    display: "[PRIVATE KEY BLOCK]",
   },
   {
     type: "generic-secret",
@@ -66,7 +68,7 @@ export function scanText(text: string, source: string, reveal = false): SecretFi
         type: pattern.type,
         provider: pattern.provider,
         severity: pattern.severity,
-        masked: reveal ? raw : maskSecret(raw),
+        masked: pattern.display ?? (reveal ? raw : maskSecret(raw)),
         source,
       });
     }

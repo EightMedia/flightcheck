@@ -61,4 +61,16 @@ describe("scanText", () => {
   it("produces no findings on clean text", () => {
     expect(scanText("<html><body>Hello world</body></html>", "html")).toHaveLength(0);
   });
+
+  it("flags a private key block with a fixed placeholder, not a masked header", () => {
+    const findings = scanText("-----BEGIN RSA PRIVATE KEY-----\nMIIE...", "app.js");
+    expect(findings).toHaveLength(1);
+    expect(findings[0]).toMatchObject({
+      type: "private-key",
+      provider: "generic",
+      severity: "critical",
+      masked: "[PRIVATE KEY BLOCK]",
+      source: "app.js",
+    });
+  });
 });
