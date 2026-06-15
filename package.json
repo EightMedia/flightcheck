@@ -17,7 +17,6 @@
     "crawl": "tsx src/cli.ts",
     "analyze": "tsx src/analyze.ts",
     "build": "tsc",
-    "prepare": "tsc",
     "start": "node dist/cli.js",
     "test": "vitest run",
     "test:watch": "vitest"
