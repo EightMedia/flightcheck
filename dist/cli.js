@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { Command } from "commander";
 import { DEFAULT_BURST_DELAY_MS, DEFAULT_CONCURRENCY, DEFAULT_DELAY_MS, DEFAULT_MAX_PAGES, DEFAULT_OUTPUT_PATH, DEFAULT_SITEMAP_URL_SUFFIX, DEFAULT_TIMEOUT_MS, } from "./crawler/defaults.js";
+import { resolveActiveGroups } from "./crawler/checkGroups.js";
 import { runCrawler } from "./crawler/runCrawler.js";
 import { collectUrlsFromSitemap } from "./crawler/sitemap.js";
 import { isHttpUrl, matchesExcludePattern, normalizeUrl, parseExcludePatterns } from "./crawler/urlUtils.js";
@@ -28,6 +29,9 @@ async function main() {
         acc.push(value);
         return acc;
     }, [])
+        .option("--only <groups>", "Run only these check groups (comma-separated): meta,icons,social,tracking,security")
+        .option("--skip <groups>", "Skip these check groups (comma-separated)")
+        .option("--reveal-secrets", "Show full secret values instead of masked ones", false)
         .action(async (startUrl, opts) => {
         if (!isHttpUrl(startUrl)) {
             throw new Error("<start-url> must be a valid http(s) URL.");
@@ -49,6 +53,14 @@ async function main() {
         if (!Number.isFinite(burstDelayMs) || burstDelayMs < 0) {
             throw new Error("--burst-delay-ms must be zero or a positive number.");
         }
+        let activeGroups;
+        try {
+            activeGroups = resolveActiveGroups({ only: opts.only, skip: opts.skip });
+        }
+        catch (error) {
+            throw new Error(error instanceof Error ? error.message : String(error));
+        }
+        const revealSecrets = Boolean(opts.revealSecrets);
         const normalizedStartUrl = normalizeUrl(startUrl);
         const origin = new URL(normalizedStartUrl).origin;
         const excludePatterns = parseExcludePatterns(opts.exclude);
@@ -73,13 +85,21 @@ async function main() {
             seedUrls,
             excludePatterns,
             respectRobotsTxt: opts.respectRobotsTxt,
+            activeGroups,
+            revealSecrets,
         });
-        process.stdout.write(`${JSON.stringify({
+        const totalSecrets = records.reduce((sum, record) => sum + (record.security?.secrets.length ?? 0), 0);
+        const summary = {
             message: interrupted ? "H1 crawl interrupted, partial report written" : "H1 crawl report written",
             output: outputPath,
             pages: records.length,
+            secretsFound: totalSecrets,
             interrupted,
-        }, null, 2)}\n`);
+        };
+        if (totalSecrets > 0 && !revealSecrets) {
+            summary.hint = `${totalSecrets} secret(s) found (masked). Re-run with --reveal-secrets to show full values.`;
+        }
+        process.stdout.write(`${JSON.stringify(summary, null, 2)}\n`);
     });
     await program.parseAsync(sanitizedArgv);
 }

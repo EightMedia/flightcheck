@@ -34,5 +34,9 @@ export function createEmptyVerificationRecord(url, status) {
             tagManager: [],
             analytics: [],
         },
+        security: {
+            secrets: [],
+            scannedAssets: 0,
+        },
     };
 }

@@ -1,10 +1,14 @@
 import { CheerioCrawler, RequestQueue } from "crawlee";
 import pino from "pino";
-import { DEFAULT_BURST_DELAY_MS, DEFAULT_CONCURRENCY, DEFAULT_DELAY_MS, DEFAULT_MAX_PAGES, DEFAULT_TIMEOUT_MS, } from "./defaults.js";
+import { DEFAULT_BURST_DELAY_MS, DEFAULT_CONCURRENCY, DEFAULT_DELAY_MS, DEFAULT_MAX_PAGES, DEFAULT_TIMEOUT_MS, DEFAULT_USER_AGENT, } from "./defaults.js";
+import { CHECK_GROUPS } from "./checkGroups.js";
 import { extractInternalLinks, extractVerificationRecord } from "./extractors.js";
+import { extractSameOriginScripts } from "./jsAssets.js";
 import { loadRobotsPolicy } from "./robots.js";
 import { writeReportToFile } from "./reporter.js";
+import { scanText } from "./secrets.js";
 import { matchesExcludePattern, normalizeUrl, sleep } from "./urlUtils.js";
+const MAX_JS_ASSET_BYTES = 5_000_000; // 5 MB — skip larger bundles to bound memory
 export async function runCrawler(options) {
     const logger = pino({ level: "info" });
     const startUrl = normalizeUrl(options.startUrl);
@@ -17,6 +21,54 @@ export async function runCrawler(options) {
     const excludePatterns = options.excludePatterns ?? [];
     const seedUrls = (options.seedUrls ?? [startUrl]).map((url) => normalizeUrl(url));
     const respectRobotsTxt = options.respectRobotsTxt ?? false;
+    const activeGroups = options.activeGroups ?? new Set(CHECK_GROUPS);
+    const revealSecrets = options.revealSecrets ?? false;
+    const jsScanCache = new Map();
+    const failedAssets = new Set();
+    const fetchText = async (assetUrl) => {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), timeoutMs);
+        try {
+            const res = await fetch(assetUrl, {
+                signal: controller.signal,
+                headers: { "user-agent": DEFAULT_USER_AGENT },
+            });
+            if (!res.ok)
+                return null;
+            const contentLength = Number(res.headers.get("content-length") ?? "0");
+            if (contentLength > MAX_JS_ASSET_BYTES)
+                return null;
+            return await res.text();
+        }
+        catch {
+            return null;
+        }
+        finally {
+            clearTimeout(timer);
+        }
+    };
+    const scanSecurity = async (html, pageUrl) => {
+        const secrets = [...scanText(html, "html", revealSecrets)];
+        const scripts = extractSameOriginScripts(html, pageUrl, origin);
+        let scannedAssets = 0;
+        for (const scriptUrl of scripts) {
+            if (failedAssets.has(scriptUrl))
+                continue;
+            let assetFindings = jsScanCache.get(scriptUrl);
+            if (!assetFindings) {
+                const js = await fetchText(scriptUrl);
+                if (js === null) {
+                    failedAssets.add(scriptUrl);
+                    continue;
+                }
+                assetFindings = scanText(js, scriptUrl, revealSecrets);
+                jsScanCache.set(scriptUrl, assetFindings);
+            }
+            scannedAssets += 1;
+            secrets.push(...assetFindings);
+        }
+        return { secrets, scannedAssets };
+    };
     const robotsPolicy = respectRobotsTxt ? await loadRobotsPolicy(origin, timeoutMs) : null;
     const requestQueue = await RequestQueue.open();
     const records = [];
@@ -42,7 +94,9 @@ export async function runCrawler(options) {
         requestQueue,
         maxRequestsPerCrawl: maxPages,
         maxConcurrency: concurrency,
-        requestHandlerTimeoutSecs: Math.ceil(timeoutMs / 1000),
+        // +60 s headroom when security scanning is active: the handler does sequential JS fetches
+        // per page; the failedAssets/jsScanCache ensures dead/cached assets aren't re-fetched.
+        requestHandlerTimeoutSecs: Math.ceil(timeoutMs / 1000) + (activeGroups.has("security") ? 60 : 0),
         requestHandler: async ({ request, body, contentType, enqueueLinks, response }) => {
             if (interrupted)
                 return;
@@ -65,7 +119,10 @@ export async function runCrawler(options) {
             const html = typeof body === "string" ? body : "";
             const status = response?.statusCode ?? null;
             const effectiveContentType = contentType?.type ?? "";
-            const record = extractVerificationRecord(html, currentUrl, status, effectiveContentType);
+            const record = extractVerificationRecord(html, currentUrl, status, effectiveContentType, activeGroups);
+            if (activeGroups.has("security") && effectiveContentType.includes("text/html") && html) {
+                record.security = await scanSecurity(html, currentUrl);
+            }
             records.push(record);
             const currentRecords = persist();
             processedSinceBurst += 1;
