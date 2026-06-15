@@ -21,6 +21,7 @@ export type VerificationRecord = {
   metaTitle: string;
   metaDescription: string;
   robots: string;
+  template: string;
   charset: string;
   language: string;
   colorScheme: string;
@@ -71,6 +72,7 @@ export function createEmptyVerificationRecord(url: string, status: number | null
     metaTitle: "",
     metaDescription: "",
     robots: "",
+    template: "",
     charset: "",
     language: "",
     colorScheme: "",

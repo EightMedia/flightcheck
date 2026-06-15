@@ -25,6 +25,7 @@ async function main() {
         .option("--sitemap-start", "Seed crawl with sitemap URLs", false)
         .option("--sitemap-url <url>", "Custom sitemap URL")
         .option("--respect-robots-txt", "Respect robots.txt disallow rules", false)
+        .option("--quiet", "Suppress Crawlee info/statistics logs (only warnings and errors)", false)
         .option("--exclude <patterns>", "Exclude patterns (comma-separated, repeatable)", (value, acc) => {
         acc.push(value);
         return acc;
@@ -87,6 +88,7 @@ async function main() {
             respectRobotsTxt: opts.respectRobotsTxt,
             activeGroups,
             revealSecrets,
+            quiet: opts.quiet,
         });
         const totalSecrets = records.reduce((sum, record) => sum + (record.security?.secrets.length ?? 0), 0);
         const summary = {

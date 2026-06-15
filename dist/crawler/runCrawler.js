@@ -1,4 +1,4 @@
-import { CheerioCrawler, RequestQueue } from "crawlee";
+import { CheerioCrawler, RequestQueue, log, LogLevel } from "crawlee";
 import pino from "pino";
 import { DEFAULT_BURST_DELAY_MS, DEFAULT_CONCURRENCY, DEFAULT_DELAY_MS, DEFAULT_MAX_PAGES, DEFAULT_TIMEOUT_MS, DEFAULT_USER_AGENT, } from "./defaults.js";
 import { CHECK_GROUPS } from "./checkGroups.js";
@@ -21,6 +21,10 @@ export async function runCrawler(options) {
     const excludePatterns = options.excludePatterns ?? [];
     const seedUrls = (options.seedUrls ?? [startUrl]).map((url) => normalizeUrl(url));
     const respectRobotsTxt = options.respectRobotsTxt ?? false;
+    const quiet = options.quiet ?? false;
+    if (quiet) {
+        log.setLevel(LogLevel.WARNING);
+    }
     const activeGroups = options.activeGroups ?? new Set(CHECK_GROUPS);
     const revealSecrets = options.revealSecrets ?? false;
     const jsScanCache = new Map();
@@ -103,7 +107,7 @@ export async function runCrawler(options) {
         // +60 s headroom when security scanning is active: the handler does sequential JS fetches
         // per page; the failedAssets/jsScanCache ensures dead/cached assets aren't re-fetched.
         requestHandlerTimeoutSecs: Math.ceil(timeoutMs / 1000) + (activeGroups.has("security") ? 60 : 0),
-        requestHandler: async ({ request, body, contentType, enqueueLinks, response }) => {
+        requestHandler: async ({ request, body, contentType, response }) => {
             if (interrupted)
                 return;
             if (delayMs > 0) {
@@ -147,9 +151,8 @@ export async function runCrawler(options) {
                     await requestQueue.addRequest({ url: normalized, uniqueKey: normalized });
                 }
             }
-            await enqueueLinks({ strategy: "same-hostname" });
         },
-        failedRequestHandler: async ({ request, error }) => {
+        failedRequestHandler: async ({ request }, error) => {
             const currentUrl = normalizeUrl(request.loadedUrl ?? request.url);
             const record = extractVerificationRecord("", currentUrl, null, "");
             record.error = error instanceof Error ? error.message : "Unknown error";

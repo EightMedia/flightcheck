@@ -7,6 +7,7 @@ export function createEmptyVerificationRecord(url, status) {
         metaTitle: "",
         metaDescription: "",
         robots: "",
+        template: "",
         charset: "",
         language: "",
         colorScheme: "",

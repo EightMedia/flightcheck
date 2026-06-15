@@ -33,6 +33,7 @@ export function extractVerificationRecord(html, url, status, contentType, active
         result.h1 = textOrEmpty($("h1").first().text());
         result.metaDescription = attrOrEmpty($, 'meta[name="description"]', "content");
         result.robots = attrOrEmpty($, 'meta[name="robots"]', "content");
+        result.template = attrOrEmpty($, 'meta[name="template"]', "content");
         result.colorScheme = attrOrEmpty($, 'meta[name="color-scheme"]', "content");
         result.themeColor = attrOrEmpty($, 'meta[name="theme-color"]', "content");
         result.viewport = attrOrEmpty($, 'meta[name="viewport"]', "content");
@@ -80,6 +81,54 @@ export function extractVerificationRecord(html, url, status, contentType, active
     }
     return result;
 }
+const NON_HTML_EXTENSIONS = new Set([
+    "pdf",
+    "zip",
+    "rar",
+    "gz",
+    "tar",
+    "7z",
+    "doc",
+    "docx",
+    "xls",
+    "xlsx",
+    "ppt",
+    "pptx",
+    "csv",
+    "rtf",
+    "png",
+    "jpg",
+    "jpeg",
+    "gif",
+    "webp",
+    "svg",
+    "ico",
+    "bmp",
+    "tiff",
+    "mp3",
+    "wav",
+    "ogg",
+    "mp4",
+    "webm",
+    "mov",
+    "avi",
+    "mkv",
+    "woff",
+    "woff2",
+    "ttf",
+    "eot",
+    "dmg",
+    "exe",
+    "apk",
+]);
+function hasNonHtmlExtension(pathname) {
+    const lastSegment = pathname.split("/").pop() ?? "";
+    const dotIndex = lastSegment.lastIndexOf(".");
+    if (dotIndex === -1)
+        return false;
+    const extension = lastSegment.slice(dotIndex + 1).toLowerCase();
+    return NON_HTML_EXTENSIONS.has(extension);
+}
 export function extractInternalLinks(html, currentUrl, origin) {
     const $ = cheerio.load(html);
     const links = new Set();
@@ -97,6 +146,8 @@ export function extractInternalLinks(html, currentUrl, origin) {
             if (absolute.origin !== origin)
                 return;
             if (absolute.protocol !== "http:" && absolute.protocol !== "https:")
+                return;
+            if (hasNonHtmlExtension(absolute.pathname))
                 return;
             absolute.hash = "";
             absolute.search = "";

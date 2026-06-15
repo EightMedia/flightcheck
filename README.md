@@ -6,8 +6,8 @@ Crawler voor site-verificatie met output naar JSON.
 
 ```bash
 pnpm install
-pnpm run crawl -- https://example.com --max-pages 10
-pnpm run analyze -- ./h1-report.json --output ./todo-report.md
+pnpm run crawl -- https://example.com
+pnpm run analyze -- ./flightcheck-report.json --output ./todo-report.md
 ```
 
 ## Documentatie
