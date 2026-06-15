@@ -1,22 +1,30 @@
 {
-  "name": "@EightMedia/flightcheck",
+  "name": "@eightmedia/flightcheck",
   "version": "0.1.0",
-  "private": true,
   "type": "module",
+  "description": "Website pre-launch crawler: verifies SEO/metadata/tracking and scans for exposed API keys and secrets.",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/EightMedia/flightcheck.git"
+  },
   "bin": {
     "flightcheck": "dist/cli.js",
     "flightcheck-analyze": "dist/analyze.js"
   },
   "files": [
     "dist",
-    "docs",
+    "docs/*.md",
     "README.md"
   ],
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "dev": "tsx src/cli.ts --help",
     "crawl": "tsx src/cli.ts",
     "analyze": "tsx src/analyze.ts",
     "build": "tsc",
+    "prepublishOnly": "tsc",
     "start": "node dist/cli.js",
     "test": "vitest run",
     "test:watch": "vitest"
