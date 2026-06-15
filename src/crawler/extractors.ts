@@ -2,6 +2,7 @@ import * as cheerio from "cheerio";
 import { createEmptyVerificationRecord, type VerificationRecord } from "./schema.js";
 import { extractTracking } from "./tracking.js";
 import { resolveUrlMaybe } from "./urlUtils.js";
+import { CHECK_GROUPS, type CheckGroup } from "./checkGroups.js";
 
 function textOrEmpty(value: string | undefined | null): string {
   return (value ?? "").trim();
@@ -28,7 +29,8 @@ export function extractVerificationRecord(
   html: string,
   url: string,
   status: number | null,
-  contentType: string
+  contentType: string,
+  activeGroups: Set<CheckGroup> = new Set(CHECK_GROUPS)
 ): VerificationRecord {
   const empty = createEmptyVerificationRecord(url, status);
 
@@ -40,73 +42,65 @@ export function extractVerificationRecord(
   }
 
   const $ = cheerio.load(html);
+  const result: VerificationRecord = { ...empty };
 
-  const title = textOrEmpty($("title").first().text());
-  const h1 = textOrEmpty($("h1").first().text());
-  const metaDescription = attrOrEmpty($, 'meta[name="description"]', "content");
-  const robots = attrOrEmpty($, 'meta[name="robots"]', "content");
-  const colorScheme = attrOrEmpty($, 'meta[name="color-scheme"]', "content");
-  const themeColor = attrOrEmpty($, 'meta[name="theme-color"]', "content");
-  const viewport = attrOrEmpty($, 'meta[name="viewport"]', "content");
-  const language = textOrEmpty($("html").first().attr("lang"));
-  const charset = textOrEmpty($('meta[charset]').first().attr("charset"));
-  const doctypeMatch = html.match(/<!doctype\s+([^>]+)>/i);
-  const doctype = textOrEmpty(doctypeMatch?.[1]);
+  if (activeGroups.has("meta")) {
+    const title = textOrEmpty($("title").first().text());
+    result.title = title;
+    result.h1 = textOrEmpty($("h1").first().text());
+    result.metaDescription = attrOrEmpty($, 'meta[name="description"]', "content");
+    result.robots = attrOrEmpty($, 'meta[name="robots"]', "content");
+    result.colorScheme = attrOrEmpty($, 'meta[name="color-scheme"]', "content");
+    result.themeColor = attrOrEmpty($, 'meta[name="theme-color"]', "content");
+    result.viewport = attrOrEmpty($, 'meta[name="viewport"]', "content");
+    result.language = textOrEmpty($("html").first().attr("lang"));
+    result.charset = textOrEmpty($("meta[charset]").first().attr("charset"));
+    const doctypeMatch = html.match(/<!doctype\s+([^>]+)>/i);
+    result.doctype = textOrEmpty(doctypeMatch?.[1]);
+    result.canonical = resolveUrlMaybe(attrOrEmpty($, 'link[rel="canonical"]', "href"), url);
+  }
 
-  const canonical = resolveUrlMaybe(attrOrEmpty($, 'link[rel="canonical"]', "href"), url);
-  const favicon = resolveUrlMaybe(attrOrEmpty($, "link[rel]", "href", { containsRel: "icon" }), url);
+  if (activeGroups.has("social")) {
+    result.og = {
+      title: attrOrEmpty($, 'meta[property="og:title"]', "content"),
+      description: attrOrEmpty($, 'meta[property="og:description"]', "content"),
+      image: resolveUrlMaybe(attrOrEmpty($, 'meta[property="og:image"]', "content"), url),
+      url: resolveUrlMaybe(attrOrEmpty($, 'meta[property="og:url"]', "content"), url),
+      type: attrOrEmpty($, 'meta[property="og:type"]', "content"),
+      siteName: attrOrEmpty($, 'meta[property="og:site_name"]', "content"),
+    };
+    result.twitter = {
+      card: attrOrEmpty($, 'meta[name="twitter:card"]', "content"),
+      title: attrOrEmpty($, 'meta[name="twitter:title"]', "content"),
+      description: attrOrEmpty($, 'meta[name="twitter:description"]', "content"),
+      image: resolveUrlMaybe(attrOrEmpty($, 'meta[name="twitter:image"]', "content"), url),
+    };
+  }
 
-  const og = {
-    title: attrOrEmpty($, 'meta[property="og:title"]', "content"),
-    description: attrOrEmpty($, 'meta[property="og:description"]', "content"),
-    image: resolveUrlMaybe(attrOrEmpty($, 'meta[property="og:image"]', "content"), url),
-    url: resolveUrlMaybe(attrOrEmpty($, 'meta[property="og:url"]', "content"), url),
-    type: attrOrEmpty($, 'meta[property="og:type"]', "content"),
-    siteName: attrOrEmpty($, 'meta[property="og:site_name"]', "content"),
-  };
+  if (activeGroups.has("meta")) {
+    result.metaTitle = textOrEmpty(result.og.title || result.twitter.title || result.title);
+  }
 
-  const twitter = {
-    card: attrOrEmpty($, 'meta[name="twitter:card"]', "content"),
-    title: attrOrEmpty($, 'meta[name="twitter:title"]', "content"),
-    description: attrOrEmpty($, 'meta[name="twitter:description"]', "content"),
-    image: resolveUrlMaybe(attrOrEmpty($, 'meta[name="twitter:image"]', "content"), url),
-  };
+  if (activeGroups.has("icons")) {
+    result.favicon = resolveUrlMaybe(attrOrEmpty($, "link[rel]", "href", { containsRel: "icon" }), url);
+    result.icons = $("link[rel]")
+      .toArray()
+      .map((el) => $(el))
+      .filter((el) => textOrEmpty(el.attr("rel")).toLowerCase().includes("icon"))
+      .map((el) => ({
+        rel: textOrEmpty(el.attr("rel")).toLowerCase(),
+        href: resolveUrlMaybe(textOrEmpty(el.attr("href")), url),
+        type: textOrEmpty(el.attr("type")),
+        sizes: textOrEmpty(el.attr("sizes")),
+        media: textOrEmpty(el.attr("media")),
+      }));
+  }
 
-  const icons = $("link[rel]")
-    .toArray()
-    .map((el) => $(el))
-    .filter((el) => textOrEmpty(el.attr("rel")).toLowerCase().includes("icon"))
-    .map((el) => ({
-      rel: textOrEmpty(el.attr("rel")).toLowerCase(),
-      href: resolveUrlMaybe(textOrEmpty(el.attr("href")), url),
-      type: textOrEmpty(el.attr("type")),
-      sizes: textOrEmpty(el.attr("sizes")),
-      media: textOrEmpty(el.attr("media")),
-    }));
+  if (activeGroups.has("tracking")) {
+    result.tracking = extractTracking(html);
+  }
 
-  const metaTitle = textOrEmpty(og.title || twitter.title || title);
-  const tracking = extractTracking(html);
-
-  return {
-    ...empty,
-    h1,
-    title,
-    metaTitle,
-    metaDescription,
-    robots,
-    charset,
-    language,
-    colorScheme,
-    themeColor,
-    doctype,
-    viewport,
-    canonical,
-    favicon,
-    icons,
-    og,
-    twitter,
-    tracking,
-  };
+  return result;
 }
 
 export function extractInternalLinks(html: string, currentUrl: string, origin: string): Set<string> {
