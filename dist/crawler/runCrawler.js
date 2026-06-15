@@ -35,10 +35,16 @@ export async function runCrawler(options) {
             });
             if (!res.ok)
                 return null;
+            // Fast reject when the server declares an oversize body up front.
             const contentLength = Number(res.headers.get("content-length") ?? "0");
             if (contentLength > MAX_JS_ASSET_BYTES)
                 return null;
-            return await res.text();
+            // Backstop for chunked/gzip responses that omit content-length: skip
+            // scanning bodies that turn out larger than the cap once read.
+            const text = await res.text();
+            if (text.length > MAX_JS_ASSET_BYTES)
+                return null;
+            return text;
         }
         catch {
             return null;
