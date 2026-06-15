@@ -54,6 +54,10 @@ export type VerificationRecord = {
     tagManager: TrackingItem[];
     analytics: TrackingItem[];
   };
+  security: {
+    secrets: SecretFinding[];
+    scannedAssets: number;
+  };
   note?: string;
   error?: string;
 };
@@ -93,6 +97,10 @@ export function createEmptyVerificationRecord(url: string, status: number | null
     tracking: {
       tagManager: [],
       analytics: [],
+    },
+    security: {
+      secrets: [],
+      scannedAssets: 0,
     },
   };
 }
