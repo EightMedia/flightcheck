@@ -134,14 +134,18 @@ The hint appears only when there are findings AND values are masked.
 
 ## 6. Testing
 
-The project has no test runner wired yet. Verification will be pragmatic:
+Add **vitest** and cover the pure logic only — no network/crawler integration tests
+(keep it proportional):
 
-- A small fixture HTML/JS blob exercising each pattern (true positives) plus clean
-  text (no false positives), run via a `tsx` script.
-- A live smoke run against one real site.
+- `secrets.test.ts` — `scanText` finds each pattern (true positives), produces no
+  findings on clean text (false-positive guard), masks correctly, and dedupes.
+- `checkGroups.test.ts` — `resolveActiveGroups` for default, `--only`, `--skip`,
+  the mutually-exclusive error, and the unknown-group error.
+- `jsAssets.test.ts` — `extractSameOriginScripts` returns same-origin scripts and
+  drops cross-origin / inline ones.
 
-If a proper test runner (vitest) is preferred, it can be added — flagged as an open
-choice rather than assumed.
+A live smoke run against one real site is used as a final manual check, not an
+automated test.
 
 ## Out of scope
 
