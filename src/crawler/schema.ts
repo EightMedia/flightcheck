@@ -1,3 +1,13 @@
+export type SecretSeverity = "critical" | "review";
+
+export type SecretFinding = {
+  type: string;
+  provider: string;
+  severity: SecretSeverity;
+  masked: string;
+  source: string;
+};
+
 export type TrackingItem = {
   provider: string;
   id: string;
