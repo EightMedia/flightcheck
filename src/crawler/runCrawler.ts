@@ -17,6 +17,8 @@ import { scanText } from "./secrets.js";
 import type { SecretFinding, VerificationRecord } from "./schema.js";
 import { matchesExcludePattern, normalizeUrl, sleep } from "./urlUtils.js";
 
+const MAX_JS_ASSET_BYTES = 5_000_000; // 5 MB — skip larger bundles to bound memory
+
 export type RunCrawlerOptions = {
   startUrl: string;
   outputPath: string;
@@ -47,13 +49,19 @@ export async function runCrawler(options: RunCrawlerOptions): Promise<{ records:
   const activeGroups = options.activeGroups ?? new Set<CheckGroup>(CHECK_GROUPS);
   const revealSecrets = options.revealSecrets ?? false;
   const jsScanCache = new Map<string, SecretFinding[]>();
+  const failedAssets = new Set<string>();
 
   const fetchText = async (assetUrl: string): Promise<string | null> => {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
-      const res = await fetch(assetUrl, { signal: controller.signal });
+      const res = await fetch(assetUrl, {
+        signal: controller.signal,
+        headers: { "user-agent": DEFAULT_USER_AGENT },
+      });
       if (!res.ok) return null;
+      const contentLength = Number(res.headers.get("content-length") ?? "0");
+      if (contentLength > MAX_JS_ASSET_BYTES) return null;
       return await res.text();
     } catch {
       return null;
@@ -70,10 +78,11 @@ export async function runCrawler(options: RunCrawlerOptions): Promise<{ records:
     const scripts = extractSameOriginScripts(html, pageUrl, origin);
     let scannedAssets = 0;
     for (const scriptUrl of scripts) {
+      if (failedAssets.has(scriptUrl)) continue;
       let assetFindings = jsScanCache.get(scriptUrl);
       if (!assetFindings) {
         const js = await fetchText(scriptUrl);
-        if (js === null) continue;
+        if (js === null) { failedAssets.add(scriptUrl); continue; }
         assetFindings = scanText(js, scriptUrl, revealSecrets);
         jsScanCache.set(scriptUrl, assetFindings);
       }
@@ -117,7 +126,9 @@ export async function runCrawler(options: RunCrawlerOptions): Promise<{ records:
     requestQueue,
     maxRequestsPerCrawl: maxPages,
     maxConcurrency: concurrency,
-    requestHandlerTimeoutSecs: Math.ceil(timeoutMs / 1000),
+    // +60 s headroom when security scanning is active: the handler does sequential JS fetches
+    // per page; the failedAssets/jsScanCache ensures dead/cached assets aren't re-fetched.
+    requestHandlerTimeoutSecs: Math.ceil(timeoutMs / 1000) + (activeGroups.has("security") ? 60 : 0),
     requestHandler: async ({ request, body, contentType, enqueueLinks, response }) => {
       if (interrupted) return;
       if (delayMs > 0) {
