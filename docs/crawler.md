@@ -28,6 +28,9 @@ Belangrijkste flags:
 - `--sitemap-url <url>`
 - `--exclude <pattern1,pattern2>` (herhaalbaar)
 - `--respect-robots-txt`
+- `--only <groups>` draai alleen deze check-groepen (komma-gescheiden)
+- `--skip <groups>` sla deze check-groepen over (komma-gescheiden)
+- `--reveal-secrets` toon volledige secret-waarden in plaats van gemaskeerde
 
 Voorbeelden:
 
@@ -36,7 +39,42 @@ pnpm run crawl -- https://example.com --max-pages 200 --concurrency 5 --delay-ms
 pnpm run crawl -- https://example.com --sitemap-start
 pnpm run crawl -- https://example.com --exclude "/search,/preview"
 pnpm run crawl -- https://example.com --respect-robots-txt
+pnpm run crawl -- https://example.com --only security
+pnpm run crawl -- https://example.com --skip tracking,social
+pnpm run crawl -- https://example.com --only security --reveal-secrets
 ```
+
+## Check-groepen
+
+De extractie is opgedeeld in benoemde groepen. Standaard draaien alle groepen; met
+`--only` draai je er één of enkele, met `--skip` sluit je groepen uit. `--only` en
+`--skip` kunnen niet samen worden gebruikt.
+
+- `meta` — title, h1, description, robots, charset, language, viewport, doctype,
+  canonical, color-scheme, theme-color.
+- `icons` — favicon en icons.
+- `social` — Open Graph en Twitter metadata.
+- `tracking` — GTM, GA4, UA, Matomo, Facebook Pixel, Plausible.
+- `security` — scan op gelekte API-keys en secrets (zie hieronder).
+
+### Security-scan
+
+De `security`-groep scant zowel de pagina-HTML als de gelinkte same-origin
+JavaScript-bestanden (`<script src>`) op gelekte API-keys en secrets. Gedeelde
+bundles worden per URL gecached en dus maar één keer opgehaald. Bevindingen krijgen
+een severity:
+
+- `critical` — hoort nooit in client-code (AWS-keys, Stripe secret keys, GitHub
+  tokens, private-key blocks, generieke `secret`/`password` toewijzingen).
+- `review` — normaal in client-code maar hoort domein-/referrer-beperkt te zijn
+  (Google API-keys, Firebase config, Stripe publishable keys, generieke
+  `apiKey`/`token`).
+
+Secret-waarden worden standaard gemaskeerd (`AIzaSy…BC0Y`). De samenvatting toont dan
+een hint om opnieuw te draaien met `--reveal-secrets` voor de volledige waarden.
+
+Wanneer een groep wordt overgeslagen, blijven de bijbehorende velden leeg; de
+output-structuur verandert nooit.
 
 ## Output schema
 
@@ -47,9 +85,17 @@ Elke record bevat:
 - canonical/favicon/icons
 - OG en Twitter metadata
 - tracking detectie (GTM, GA4, UA, Matomo, Facebook Pixel, Plausible)
+- `security` met `secrets` (gevonden keys/secrets) en `scannedAssets` (aantal
+  gescande JS-bestanden)
 - optionele `note` en `error`
 
 Tekstvelden worden altijd gevuld met een string, dus geen `undefined` of `null`.
+
+Elke `secrets`-bevinding bevat `type`, `provider`, `severity` (`critical` of
+`review`), `masked` (gemaskeerde of — met `--reveal-secrets` — volledige waarde) en
+`source` (`html` of de URL van het JS-bestand). De afsluitende samenvatting bevat
+`secretsFound` (totaal aantal bevindingen) en, bij gemaskeerde output met
+bevindingen, een `hint`.
 
 ## Architectuur
 

@@ -24,9 +24,16 @@ pnpm run analyze -- ./report.json --output ./todo-report.md --errors-only
 
 De output is Markdown met:
 
+- `🔑 Security`: als er secrets/API-keys zijn gevonden, bovenaan een sectie per URL
+  met de bevindingen (severity `critical` eerst), inclusief provider, gemaskeerde
+  waarde en bron. Bij gemaskeerde waarden staat er een hint om de crawl opnieuw te
+  draaien met `--reveal-secrets`.
 - `Priority overview`: geaggregeerde lijst van missende velden.
 - `Page-level TODO list`: per URL een checklist-item met ontbrekende attributen.
 - `Suggested workflow`: korte stappen om iteratief te verbeteren.
+
+Met `--errors-only` blijven pagina's met security-bevindingen in het rapport staan,
+ook als ze verder geen ontbrekende velden hebben.
 
 ## Notes
 
