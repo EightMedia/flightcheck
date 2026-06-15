@@ -3,11 +3,21 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "bin": {
+    "flightcheck": "dist/cli.js",
+    "flightcheck-analyze": "dist/analyze.js"
+  },
+  "files": [
+    "dist",
+    "docs",
+    "README.md"
+  ],
   "scripts": {
     "dev": "tsx src/cli.ts --help",
     "crawl": "tsx src/cli.ts",
     "analyze": "tsx src/analyze.ts",
     "build": "tsc",
+    "prepare": "tsc",
     "start": "node dist/cli.js",
     "test": "vitest run",
     "test:watch": "vitest"
