@@ -8,10 +8,13 @@ import {
   DEFAULT_TIMEOUT_MS,
   DEFAULT_USER_AGENT,
 } from "./defaults.js";
+import { CHECK_GROUPS, type CheckGroup } from "./checkGroups.js";
 import { extractInternalLinks, extractVerificationRecord } from "./extractors.js";
+import { extractSameOriginScripts } from "./jsAssets.js";
 import { loadRobotsPolicy } from "./robots.js";
 import { writeReportToFile } from "./reporter.js";
-import type { VerificationRecord } from "./schema.js";
+import { scanText } from "./secrets.js";
+import type { SecretFinding, VerificationRecord } from "./schema.js";
 import { matchesExcludePattern, normalizeUrl, sleep } from "./urlUtils.js";
 
 export type RunCrawlerOptions = {
@@ -25,6 +28,8 @@ export type RunCrawlerOptions = {
   seedUrls?: string[];
   excludePatterns?: string[];
   respectRobotsTxt?: boolean;
+  activeGroups?: Set<CheckGroup>;
+  revealSecrets?: boolean;
 };
 
 export async function runCrawler(options: RunCrawlerOptions): Promise<{ records: VerificationRecord[]; interrupted: boolean }> {
@@ -39,6 +44,45 @@ export async function runCrawler(options: RunCrawlerOptions): Promise<{ records:
   const excludePatterns = options.excludePatterns ?? [];
   const seedUrls = (options.seedUrls ?? [startUrl]).map((url) => normalizeUrl(url));
   const respectRobotsTxt = options.respectRobotsTxt ?? false;
+  const activeGroups = options.activeGroups ?? new Set<CheckGroup>(CHECK_GROUPS);
+  const revealSecrets = options.revealSecrets ?? false;
+  const jsScanCache = new Map<string, SecretFinding[]>();
+
+  const fetchText = async (assetUrl: string): Promise<string | null> => {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const res = await fetch(assetUrl, { signal: controller.signal });
+      if (!res.ok) return null;
+      return await res.text();
+    } catch {
+      return null;
+    } finally {
+      clearTimeout(timer);
+    }
+  };
+
+  const scanSecurity = async (
+    html: string,
+    pageUrl: string
+  ): Promise<{ secrets: SecretFinding[]; scannedAssets: number }> => {
+    const secrets: SecretFinding[] = [...scanText(html, "html", revealSecrets)];
+    const scripts = extractSameOriginScripts(html, pageUrl, origin);
+    let scannedAssets = 0;
+    for (const scriptUrl of scripts) {
+      let assetFindings = jsScanCache.get(scriptUrl);
+      if (!assetFindings) {
+        const js = await fetchText(scriptUrl);
+        if (js === null) continue;
+        assetFindings = scanText(js, scriptUrl, revealSecrets);
+        jsScanCache.set(scriptUrl, assetFindings);
+      }
+      scannedAssets += 1;
+      secrets.push(...assetFindings);
+    }
+    return { secrets, scannedAssets };
+  };
+
   const robotsPolicy = respectRobotsTxt ? await loadRobotsPolicy(origin, timeoutMs) : null;
 
   const requestQueue = await RequestQueue.open();
@@ -96,7 +140,10 @@ export async function runCrawler(options: RunCrawlerOptions): Promise<{ records:
       const status = response?.statusCode ?? null;
       const effectiveContentType = contentType?.type ?? "";
 
-      const record = extractVerificationRecord(html, currentUrl, status, effectiveContentType);
+      const record = extractVerificationRecord(html, currentUrl, status, effectiveContentType, activeGroups);
+      if (activeGroups.has("security") && effectiveContentType.includes("text/html") && html) {
+        record.security = await scanSecurity(html, currentUrl);
+      }
       records.push(record);
       const currentRecords = persist();
       processedSinceBurst += 1;
