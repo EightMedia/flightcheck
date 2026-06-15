@@ -18,6 +18,14 @@ const trackingItemSchema = z.object({
   id: z.string(),
 });
 
+const secretFindingSchema = z.object({
+  type: z.string(),
+  provider: z.string(),
+  severity: z.enum(["critical", "review"]),
+  masked: z.string(),
+  source: z.string(),
+});
+
 const recordSchema = z.object({
   url: z.string(),
   status: z.number().nullable(),
@@ -53,6 +61,12 @@ const recordSchema = z.object({
     tagManager: z.array(trackingItemSchema),
     analytics: z.array(trackingItemSchema),
   }),
+  security: z
+    .object({
+      secrets: z.array(secretFindingSchema),
+      scannedAssets: z.number(),
+    })
+    .optional(),
   note: z.string().optional(),
   error: z.string().optional(),
 });
@@ -112,7 +126,8 @@ function buildMarkdown(inputPath: string, records: RecordType[], includeOnlyErro
       missingFields.unshift("fetch");
     }
 
-    if (includeOnlyErrors && !record.error && missingFields.length === 0) {
+    const hasSecrets = (record.security?.secrets.length ?? 0) > 0;
+    if (includeOnlyErrors && !record.error && missingFields.length === 0 && !hasSecrets) {
       continue;
     }
 
@@ -132,6 +147,28 @@ function buildMarkdown(inputPath: string, records: RecordType[], includeOnlyErro
   const sortedFieldCounts = [...perFieldMissingCount.entries()].sort((a, b) => b[1] - a[1]);
   const now = new Date().toISOString();
 
+  const securityPages = records
+    .map((record) => ({ url: record.url, secrets: record.security?.secrets ?? [] }))
+    .filter((entry) => entry.secrets.length > 0);
+
+  const securityLines: string[] = [];
+  if (securityPages.length > 0) {
+    const anyMasked = securityPages.some((page) => page.secrets.some((secret) => secret.masked.includes("…")));
+    securityLines.push("## 🔑 Security", "");
+    if (anyMasked) {
+      securityLines.push("Secret values are masked. Re-run the crawl with `--reveal-secrets` to show full values.", "");
+    }
+    const severityRank = (severity: string): number => (severity === "critical" ? 0 : 1);
+    for (const page of securityPages) {
+      const sorted = [...page.secrets].sort((a, b) => severityRank(a.severity) - severityRank(b.severity));
+      securityLines.push(`### ${page.url}`, "");
+      for (const secret of sorted) {
+        securityLines.push(`- [ ] **${secret.severity.toUpperCase()}** ${secret.provider} ${secret.type}: \`${secret.masked}\` (source: ${secret.source})`);
+      }
+      securityLines.push("");
+    }
+  }
+
   const lines: string[] = [
     "# Flightcheck TODO Report",
     "",
@@ -140,6 +177,7 @@ function buildMarkdown(inputPath: string, records: RecordType[], includeOnlyErro
     `Pages analyzed: ${records.length}`,
     `Pages with TODOs: ${perUrlTodos.length}`,
     "",
+    ...securityLines,
     "## Priority overview",
     "",
   ];
