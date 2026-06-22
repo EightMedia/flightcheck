@@ -24,7 +24,7 @@ When crawling, these optional groups extend per-page extraction:
 
 | Group | Status | Description |
 | --- | --- | --- |
-| `images` | implemented | Image alt text issues (missing, empty, generic) |
+| `images` | implemented | Image alt text issues (missing, empty, generic); filenames from `src`/`srcset`/`<picture>` |
 | `a11y-static` | implemented | Static accessibility hints (headings, labels, lang, tabindex) |
 
 Use `--only images,a11y-static` or include them in the default crawl groups.

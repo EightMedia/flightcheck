@@ -334,6 +334,10 @@ const DEFAULT_LEGAL_PATHS = [
 - `<img alt="">` on non-decorative images
 - Generic alt text (`image`, `photo`, filename)
 
+Issue messages include one image filename when available from `src`, `srcset`, or
+`<picture>` / `<source>` elements. Comma-separated query params inside srcset URLs
+(for example Sanity `rect=`) are ignored; only the basename is shown.
+
 **Static a11y hints (`a11y-static` group):**
 
 - Heading hierarchy skips (h1 → h3)

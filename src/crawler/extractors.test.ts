@@ -62,10 +62,60 @@ describe("extractVerificationRecord images group", () => {
     expect(record.images).toEqual(
       expect.objectContaining({
         issues: expect.arrayContaining([
-          expect.objectContaining({ id: "missing-alt", severity: "error" }),
+          expect.objectContaining({
+            id: "missing-alt",
+            severity: "error",
+            message: "Image is missing an alt attribute. (hero.jpg)",
+          }),
         ]),
       })
     );
+  });
+
+  it("includes a single filename from srcset and picture sources", () => {
+    const record = extractVerificationRecord(
+      `<!doctype html><html><body>
+        <img srcset="/responsive-480.jpg 480w, /responsive-800.jpg 800w">
+        <picture>
+          <source srcset="/hero.webp" type="image/webp">
+          <img src="/hero.jpg">
+        </picture>
+      </body></html>`,
+      "https://example.com",
+      200,
+      "text/html",
+      withGroups("images")
+    );
+
+    expect(record.images?.issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: "missing-alt",
+          message: "Image is missing an alt attribute. (responsive-480.jpg)",
+        }),
+        expect.objectContaining({
+          id: "missing-alt",
+          message: "Image is missing an alt attribute. (hero.jpg)",
+        }),
+      ])
+    );
+  });
+
+  it("extracts one filename from srcset with commas in query params", () => {
+    const record = extractVerificationRecord(
+      `<!doctype html><html><body><img alt="" srcset="https://cdn.sanity.io/images/project/production/4ed48727d6fc4e99b5e71625efc57e1d52b88e53-3840x2160.jpg?rect=0,1620,2160,3840&w=768&h=1024&fm=webp&q=40&dpr=2 768w, https://cdn.sanity.io/images/project/production/4ed48727d6fc4e99b5e71625efc57e1d52b88e53-3840x2160.jpg?w=345&h=690&fm=webp&q=80 345w"></body></html>`,
+      "https://example.com",
+      200,
+      "text/html",
+      withGroups("images")
+    );
+
+    expect(record.images?.issues).toEqual([
+      expect.objectContaining({
+        id: "empty-alt",
+        message: "Image has an empty alt attribute. (4ed48727d6fc4e99b5e71625efc57e1d52b88e53-3840x2160.jpg)",
+      }),
+    ]);
   });
 
   it("flags empty alt on non-decorative images", () => {

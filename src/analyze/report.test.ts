@@ -70,6 +70,40 @@ describe("buildMarkdown robots warnings", () => {
   });
 });
 
+describe("buildMarkdown template meta warnings", () => {
+  it("warns site-wide when template meta is missing on all pages", () => {
+    const markdown = buildMarkdown(
+      "report.json",
+      [makeRecord({ template: "", url: "https://example.com/a" }), makeRecord({ template: "", url: "https://example.com/b" })],
+      false
+    );
+
+    expect(markdown).toContain(
+      "- [ ] Add template meta tag to site layout head — helps flightcheck give better tailored reports"
+    );
+    expect(markdown).toContain("- `missing template meta`: 2/2 pages (site-wide)");
+    expect(markdown).not.toContain("Add template meta tag to page head");
+  });
+
+  it("warns per page when template meta is missing on only some pages", () => {
+    const markdown = buildMarkdown(
+      "report.json",
+      [makeRecord({ template: "", url: "https://example.com/a" }), makeRecord({ template: "work", url: "https://example.com/b" })],
+      false
+    );
+
+    expect(markdown).toContain("- [ ] Add template meta tag to page head — helps flightcheck give better tailored reports");
+    expect(markdown).toContain("- `missing template meta`: 1/2 pages (page-specific)");
+    expect(markdown).not.toContain("Add template meta tag to site layout head");
+  });
+
+  it("does not warn when template meta is present", () => {
+    const markdown = buildMarkdown("report.json", [makeRecord({ template: "work" })], false);
+    expect(markdown).not.toContain("missing template meta");
+    expect(markdown).not.toContain("Add template meta tag");
+  });
+});
+
 describe("buildMarkdown site-wide todos", () => {
   it("lists shared issues once under site-wide fixes", () => {
     const shared = {
@@ -333,6 +367,32 @@ describe("buildMarkdown tier 1 infra sections", () => {
 });
 
 describe("buildMarkdown tier 1 crawl issues", () => {
+  it("puts page-specific image alt issues on per-page fixes with filenames", () => {
+    const markdown = buildMarkdown(
+      "report.json",
+      [
+        makeRecord({
+          url: "https://example.com/a",
+          images: {
+            issues: [
+              {
+                id: "missing-alt",
+                severity: "error",
+                message: "Image is missing an alt attribute. (hero.jpg)",
+              },
+            ],
+          },
+        }),
+        makeRecord({ url: "https://example.com/b" }),
+      ],
+      false
+    );
+
+    expect(markdown).toContain("### https://example.com/a");
+    expect(markdown).toContain("- [ ] Image is missing an alt attribute. (hero.jpg)");
+    expect(markdown).toContain("- `missing image alt`: 1/2 pages (page-specific)");
+  });
+
   it("puts shared image alt issues in site-wide fixes", () => {
     const markdown = buildMarkdown(
       "report.json",

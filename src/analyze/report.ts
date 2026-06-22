@@ -138,6 +138,13 @@ function parseRobotsDirectives(robots: string): Set<string> {
 
 function collectWarnings(record: ReportRecord): string[] {
   const warnings: string[] = [];
+
+  if (record.template.trim() === "") {
+    warnings.push(
+      "Missing template meta tag — adding `<meta name=\"template\">` helps flightcheck give better tailored reports."
+    );
+  }
+
   const robots = record.robots.trim();
   if (robots === "") return warnings;
 
@@ -175,9 +182,12 @@ function collectMainLandmarkIssues(mainCount: number | null | undefined): { todo
 const WARNING_LABELS: Record<string, string> = {
   noindex: "noindex",
   nofollow: "nofollow",
+  "missing-template": "missing template meta",
   "main-missing": "missing main landmark",
   "main-multiple": "multiple main landmarks",
 };
+
+const IMAGE_TIER1_IDS = new Set(["missing-alt", "empty-alt", "generic-alt"]);
 
 const TIER1_LABELS: Record<string, string> = {
   "missing-alt": "missing image alt",
@@ -345,6 +355,7 @@ type UrlTodoItem = {
   warnings: string[];
   warningKeys: string[];
   tier1IssueKeys: string[];
+  imageIssues: { id: string; severity: string; message: string }[];
   mainLandmarkTodos: string[];
   mainCount?: number | null;
   note?: string;
@@ -400,6 +411,8 @@ function countTier1IssueOccurrences(items: UrlTodoItem[]): Map<string, number> {
 const SITE_WARNING_TODOS: Record<string, string> = {
   noindex: "Remove noindex from shared robots meta tag in site layout",
   nofollow: "Remove nofollow from shared robots meta tag in site layout",
+  "missing-template":
+    "Add template meta tag to site layout head — helps flightcheck give better tailored reports",
 };
 
 const TEMPLATE_WARNING_TODOS: Record<string, string> = {
@@ -410,6 +423,7 @@ const TEMPLATE_WARNING_TODOS: Record<string, string> = {
 const PAGE_WARNING_TODOS: Record<string, string> = {
   noindex: "Remove noindex from page robots meta tag",
   nofollow: "Remove nofollow from page robots meta tag",
+  "missing-template": "Add template meta tag to page head — helps flightcheck give better tailored reports",
 };
 
 function buildWarningTodos(keys: string[], scope: FixScope): string[] {
@@ -438,6 +452,10 @@ function buildTier1Todos(keys: string[], scope: FixScope): string[] {
     .map((message) => `- [ ] ${message}`);
 }
 
+function buildImageIssueTodos(issues: UrlTodoItem["imageIssues"]): string[] {
+  return issues.map((issue) => `- [ ] ${issue.message}`);
+}
+
 function buildScopedFixTodos(
   items: UrlTodoItem[],
   scope: FixScope,
@@ -464,6 +482,7 @@ function buildRemainingPageTodos(
   const remainingFields = item.missingFields.filter((field) => !coveredFields.has(field));
   const remainingWarningKeys = item.warningKeys.filter((key) => !coveredWarningKeys.has(key));
   const remainingTier1Keys = item.tier1IssueKeys.filter((key) => !coveredTier1Keys.has(key));
+  const remainingNonImageTier1Keys = remainingTier1Keys.filter((key) => !IMAGE_TIER1_IDS.has(key));
   const todos = [...buildBundledFieldTodos(remainingFields, "page")];
 
   for (const key of remainingWarningKeys) {
@@ -478,7 +497,9 @@ function buildRemainingPageTodos(
     if (todo) todos.push(todo);
   }
 
-  todos.push(...buildTier1Todos(remainingTier1Keys, "page"));
+  todos.push(...buildTier1Todos(remainingNonImageTier1Keys, "page"));
+  const uncoveredImageIssues = item.imageIssues.filter((issue) => !coveredTier1Keys.has(issue.id));
+  todos.push(...buildImageIssueTodos(uncoveredImageIssues));
 
   return todos;
 }
@@ -501,6 +522,9 @@ function analyzeRecord(record: ReportRecord): UrlTodoItem {
   const { todos: mainLandmarkTodos, issueKeys: mainIssueKeys } = collectMainLandmarkIssues(record.mainCount);
 
   const warningKeys: string[] = [...mainIssueKeys];
+  if (record.template.trim() === "") {
+    warningKeys.push("missing-template");
+  }
   if (warnings.length > 0) {
     const directives = parseRobotsDirectives(record.robots);
     if (directives.has("noindex") || directives.has("none")) warningKeys.push("noindex");
@@ -515,6 +539,7 @@ function analyzeRecord(record: ReportRecord): UrlTodoItem {
     warnings,
     warningKeys,
     tier1IssueKeys: collectTier1IssueKeys(record),
+    imageIssues: record.images?.issues ?? [],
     mainLandmarkTodos,
     mainCount: record.mainCount,
     note: record.note,

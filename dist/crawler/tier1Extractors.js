@@ -19,6 +19,84 @@ function isDecorativeImage($img) {
     return false;
 }
 const GENERIC_ALT = new Set(["image", "photo", "picture", "img", "logo", "icon"]);
+const IMAGE_EXTENSION_RE = /\.(?:jpe?g|png|gif|webp|avif|svg)$/i;
+const IMAGE_FILENAME_IN_TEXT_RE = /([^\/?#\s&,=]+\.(?:jpe?g|png|gif|webp|avif|svg))/gi;
+function isValidImageFilename(filename) {
+    if (!filename || filename.includes("&") || filename.includes("="))
+        return false;
+    if (!IMAGE_EXTENSION_RE.test(filename))
+        return false;
+    return !/^\d+$/.test(filename.replace(IMAGE_EXTENSION_RE, ""));
+}
+function filenameFromUrl(url) {
+    const trimmed = url.trim();
+    if (!trimmed || trimmed.startsWith("data:") || trimmed.startsWith("blob:"))
+        return null;
+    let pathname;
+    try {
+        pathname = trimmed.includes("://") ? new URL(trimmed).pathname : trimmed.split(/[?#]/)[0] ?? "";
+    }
+    catch {
+        pathname = trimmed.split(/[?#]/)[0] ?? "";
+    }
+    const filename = pathname.split("/").filter(Boolean).pop() ?? "";
+    return isValidImageFilename(filename) ? filename : null;
+}
+function filenamesInText(text) {
+    const seen = new Set();
+    const filenames = [];
+    for (const match of text.matchAll(IMAGE_FILENAME_IN_TEXT_RE)) {
+        const filename = match[1];
+        if (!isValidImageFilename(filename) || seen.has(filename))
+            continue;
+        seen.add(filename);
+        filenames.push(filename);
+    }
+    return filenames;
+}
+function filenameFromAttributeValue(value) {
+    const trimmed = value.trim();
+    if (!trimmed)
+        return null;
+    let decoded = trimmed;
+    try {
+        decoded = decodeURIComponent(trimmed);
+    }
+    catch {
+        // keep original value
+    }
+    return filenameFromUrl(trimmed) ?? filenameFromUrl(decoded) ?? filenamesInText(trimmed)[0] ?? filenamesInText(decoded)[0] ?? null;
+}
+function collectImageFilename($, $img) {
+    const candidates = [];
+    const src = ($img.attr("src") ?? "").trim();
+    if (src)
+        candidates.push(src);
+    const srcset = ($img.attr("srcset") ?? "").trim();
+    if (srcset)
+        candidates.push(srcset);
+    const $picture = $img.closest("picture");
+    if ($picture.length > 0) {
+        $picture.find("source").each((_, source) => {
+            const $source = $(source);
+            const sourceSrc = ($source.attr("src") ?? "").trim();
+            if (sourceSrc)
+                candidates.push(sourceSrc);
+            const sourceSrcset = ($source.attr("srcset") ?? "").trim();
+            if (sourceSrcset)
+                candidates.push(sourceSrcset);
+        });
+    }
+    for (const candidate of candidates) {
+        const filename = filenameFromAttributeValue(candidate);
+        if (filename)
+            return filename;
+    }
+    return null;
+}
+function imageIssueMessage(base, filename) {
+    return filename ? `${base} (${filename})` : base;
+}
 function isGenericAlt(alt, src) {
     const normalized = alt.trim().toLowerCase();
     if (!normalized)
@@ -36,18 +114,19 @@ export function extractImageIssues($) {
         if (isDecorativeImage($img))
             return;
         const src = ($img.attr("src") ?? "").trim();
+        const filename = collectImageFilename($, $img);
         const hasAlt = $img.get(0)?.attribs && Object.prototype.hasOwnProperty.call($img.get(0).attribs, "alt");
         const alt = ($img.attr("alt") ?? "").trim();
         if (!hasAlt) {
-            issues.push(crawlIssue("missing-alt", "error", "Image is missing an alt attribute."));
+            issues.push(crawlIssue("missing-alt", "error", imageIssueMessage("Image is missing an alt attribute.", filename)));
             return;
         }
         if (alt.length === 0) {
-            issues.push(crawlIssue("empty-alt", "warning", "Image has an empty alt attribute."));
+            issues.push(crawlIssue("empty-alt", "warning", imageIssueMessage("Image has an empty alt attribute.", filename)));
             return;
         }
         if (isGenericAlt(alt, src)) {
-            issues.push(crawlIssue("generic-alt", "warning", "Image uses generic alt text."));
+            issues.push(crawlIssue("generic-alt", "warning", imageIssueMessage("Image uses generic alt text.", filename)));
         }
     });
     return issues;

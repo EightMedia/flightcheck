@@ -116,6 +116,7 @@ Voorbeeld:
 Resterende issues per URL — meestal page-specific content. Site-wide en template-fixes worden
 hier niet herhaald. Bevat ook Tier 1 crawl-issues zoals ontbrekende image alt-teksten en
 statische a11y-hints wanneer de `images` of `a11y-static` crawl groups actief zijn.
+Image-alt issues tonen de bestandsnaam wanneer die uit `src`, `srcset` of `<picture>` te halen is.
 
 ## Checks
 
@@ -131,6 +132,14 @@ Een ontbrekende robots meta tag is geen missend veld. Alleen expliciete `noindex
 
 - Site-wide: `Remove noindex from shared robots meta tag in site layout`
 - Per page: `Remove noindex from page robots meta tag`
+
+### Template meta
+
+Een ontbrekende `<meta name="template">` tag is geen missend SEO-veld, maar wel een warning.
+Flightcheck gebruikt deze tag om issues per template te groeperen in het rapport.
+
+- Site-wide: `Add template meta tag to site layout head — helps flightcheck give better tailored reports`
+- Per page: `Add template meta tag to page head — helps flightcheck give better tailored reports`
 
 ### Main landmark
 

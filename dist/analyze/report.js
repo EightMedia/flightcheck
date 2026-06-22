@@ -114,6 +114,9 @@ function parseRobotsDirectives(robots) {
 }
 function collectWarnings(record) {
     const warnings = [];
+    if (record.template.trim() === "") {
+        warnings.push("Missing template meta tag — adding `<meta name=\"template\">` helps flightcheck give better tailored reports.");
+    }
     const robots = record.robots.trim();
     if (robots === "")
         return warnings;
@@ -145,9 +148,11 @@ function collectMainLandmarkIssues(mainCount) {
 const WARNING_LABELS = {
     noindex: "noindex",
     nofollow: "nofollow",
+    "missing-template": "missing template meta",
     "main-missing": "missing main landmark",
     "main-multiple": "multiple main landmarks",
 };
+const IMAGE_TIER1_IDS = new Set(["missing-alt", "empty-alt", "generic-alt"]);
 const TIER1_LABELS = {
     "missing-alt": "missing image alt",
     "empty-alt": "empty image alt",
@@ -355,6 +360,7 @@ function countTier1IssueOccurrences(items) {
 const SITE_WARNING_TODOS = {
     noindex: "Remove noindex from shared robots meta tag in site layout",
     nofollow: "Remove nofollow from shared robots meta tag in site layout",
+    "missing-template": "Add template meta tag to site layout head — helps flightcheck give better tailored reports",
 };
 const TEMPLATE_WARNING_TODOS = {
     noindex: "Remove noindex from template robots meta tag",
@@ -363,6 +369,7 @@ const TEMPLATE_WARNING_TODOS = {
 const PAGE_WARNING_TODOS = {
     noindex: "Remove noindex from page robots meta tag",
     nofollow: "Remove nofollow from page robots meta tag",
+    "missing-template": "Add template meta tag to page head — helps flightcheck give better tailored reports",
 };
 function buildWarningTodos(keys, scope) {
     const messages = scope === "site" ? SITE_WARNING_TODOS : scope === "template" ? TEMPLATE_WARNING_TODOS : PAGE_WARNING_TODOS;
@@ -393,6 +400,9 @@ function buildTier1Todos(keys, scope) {
         .filter((message) => Boolean(message))
         .map((message) => `- [ ] ${message}`);
 }
+function buildImageIssueTodos(issues) {
+    return issues.map((issue) => `- [ ] ${issue.message}`);
+}
 function buildScopedFixTodos(items, scope, excludedFields = new Set(), excludedWarningKeys = new Set(), excludedTier1Keys = new Set()) {
     const universalFields = fieldsMissingOnAllPages(items).filter((field) => !excludedFields.has(field));
     const universalWarningKeys = warningKeysOnAllPages(items).filter((key) => !excludedWarningKeys.has(key));
@@ -407,6 +417,7 @@ function buildRemainingPageTodos(item, coveredFields, coveredWarningKeys, covere
     const remainingFields = item.missingFields.filter((field) => !coveredFields.has(field));
     const remainingWarningKeys = item.warningKeys.filter((key) => !coveredWarningKeys.has(key));
     const remainingTier1Keys = item.tier1IssueKeys.filter((key) => !coveredTier1Keys.has(key));
+    const remainingNonImageTier1Keys = remainingTier1Keys.filter((key) => !IMAGE_TIER1_IDS.has(key));
     const todos = [...buildBundledFieldTodos(remainingFields, "page")];
     for (const key of remainingWarningKeys) {
         if (key === "main-missing" || key === "main-multiple")
@@ -423,7 +434,9 @@ function buildRemainingPageTodos(item, coveredFields, coveredWarningKeys, covere
         if (todo)
             todos.push(todo);
     }
-    todos.push(...buildTier1Todos(remainingTier1Keys, "page"));
+    todos.push(...buildTier1Todos(remainingNonImageTier1Keys, "page"));
+    const uncoveredImageIssues = item.imageIssues.filter((issue) => !coveredTier1Keys.has(issue.id));
+    todos.push(...buildImageIssueTodos(uncoveredImageIssues));
     return todos;
 }
 function collectTier1IssueKeys(record) {
@@ -440,6 +453,9 @@ function analyzeRecord(record) {
     const warnings = collectWarnings(record);
     const { todos: mainLandmarkTodos, issueKeys: mainIssueKeys } = collectMainLandmarkIssues(record.mainCount);
     const warningKeys = [...mainIssueKeys];
+    if (record.template.trim() === "") {
+        warningKeys.push("missing-template");
+    }
     if (warnings.length > 0) {
         const directives = parseRobotsDirectives(record.robots);
         if (directives.has("noindex") || directives.has("none"))
@@ -455,6 +471,7 @@ function analyzeRecord(record) {
         warnings,
         warningKeys,
         tier1IssueKeys: collectTier1IssueKeys(record),
+        imageIssues: record.images?.issues ?? [],
         mainLandmarkTodos,
         mainCount: record.mainCount,
         note: record.note,
