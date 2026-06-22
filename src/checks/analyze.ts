@@ -2,15 +2,18 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { buildMarkdown, parseReport, type ReportRecord, type Tier1ReportData } from "../analyze/report.js";
 import { buildStackProfile } from "../analyze/stack.js";
-import { defaultReportPathForInput } from "../crawler/outputPaths.js";
+import { defaultReportPathForInput, defaultManifestPathForInput } from "../crawler/outputPaths.js";
+import { buildFixManifest } from "../analyze/fixManifest.js";
 import type { AnalyzeCheckResult } from "./types.js";
 
 export type AnalyzeCheckOptions = {
   records?: ReportRecord[];
   inputPath?: string;
   reportPath?: string;
+  manifestPath?: string;
   errorsOnly?: boolean;
   writeReport?: boolean;
+  writeManifest?: boolean;
   redirectOnly?: boolean;
   tier1?: Tier1ReportData;
 };
@@ -39,6 +42,7 @@ function loadRecords(options: AnalyzeCheckOptions): { records: ReportRecord[]; i
 export async function runAnalyzeCheck(options: AnalyzeCheckOptions): Promise<AnalyzeCheckResult> {
   const { records, inputPath } = loadRecords(options);
   const reportPath = resolve(options.reportPath ?? defaultReportPathForInput(inputPath));
+  const manifestPath = resolve(options.manifestPath ?? defaultManifestPathForInput(inputPath));
   const redirectOnly = options.redirectOnly ?? false;
   const stackProfile = redirectOnly
     ? { detections: [], tracking: { tagManager: [], analytics: [] } }
@@ -51,16 +55,28 @@ export async function runAnalyzeCheck(options: AnalyzeCheckOptions): Promise<Ana
     redirectOnly,
     stackProfile,
   });
+  const manifest = await buildFixManifest(inputPath, records, options.tier1, {
+    redirectOnly,
+    reportPath,
+    stackProfile,
+  });
 
   if (options.writeReport !== false) {
     mkdirSync(dirname(reportPath), { recursive: true });
     writeFileSync(reportPath, markdown, "utf8");
   }
 
+  if (options.writeManifest !== false) {
+    mkdirSync(dirname(manifestPath), { recursive: true });
+    writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
+  }
+
   return {
     inputPath,
     reportPath,
+    manifestPath,
     markdown,
+    manifest,
     pagesAnalyzed: records.length,
   };
 }

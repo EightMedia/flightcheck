@@ -15,12 +15,14 @@
   },
   "bin": {
     "flightcheck": "dist/cli.js",
-    "flightcheck-analyze": "dist/analyze.js"
+    "flightcheck-analyze": "dist/analyze.js",
+    "flightcheck-orchestrate": "dist/orchestrate.js"
   },
   "files": [
     "dist",
     "data/webappanalyzer",
     "docs/*.md",
+    "prompts/fix",
     "README.md",
     "LICENSE"
   ],
@@ -32,6 +34,7 @@
     "flightcheck": "tsx src/cli.ts",
     "crawl": "tsx src/cli.ts",
     "analyze": "tsx src/analyze.ts",
+    "orchestrate": "tsx src/orchestrate.ts",
     "build": "tsc",
     "prepublishOnly": "tsc",
     "start": "node dist/cli.js",

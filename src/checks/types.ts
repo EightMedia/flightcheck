@@ -43,7 +43,9 @@ export type CrawlCheckResult = {
 export type AnalyzeCheckResult = {
   inputPath: string;
   reportPath: string;
+  manifestPath: string;
   markdown: string;
+  manifest: import("../analyze/fixManifest.js").FixManifest;
   pagesAnalyzed: number;
 };
 

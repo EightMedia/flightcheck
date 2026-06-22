@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildDefaultOutputPaths,
+  defaultManifestPathForInput,
   defaultReportPathForInput,
   formatRunTimestamp,
   hostnameFromUrl,
@@ -41,5 +42,13 @@ describe("defaultReportPathForInput", () => {
 
   it("replaces generic .json suffix", () => {
     expect(defaultReportPathForInput("./flightcheck/report.json")).toBe("./flightcheck/report-report.md");
+  });
+});
+
+describe("defaultManifestPathForInput", () => {
+  it("replaces -raw.json suffix", () => {
+    expect(defaultManifestPathForInput("./flightcheck/20260618.1413-eight.nl-raw.json")).toBe(
+      "./flightcheck/20260618.1413-eight.nl-fix-manifest.json"
+    );
   });
 });

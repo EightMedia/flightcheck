@@ -32,3 +32,16 @@ export function defaultReportPathForInput(inputPath: string): string {
   }
   return `${inputPath}-report.md`;
 }
+
+export function defaultManifestPathForInput(inputPath: string): string {
+  if (inputPath.endsWith("-raw.json")) {
+    return `${inputPath.slice(0, -"-raw.json".length)}-fix-manifest.json`;
+  }
+  if (inputPath.endsWith("-report.md")) {
+    return `${inputPath.slice(0, -"-report.md".length)}-fix-manifest.json`;
+  }
+  if (inputPath.endsWith(".json")) {
+    return `${inputPath.slice(0, -".json".length)}-fix-manifest.json`;
+  }
+  return `${inputPath}-fix-manifest.json`;
+}

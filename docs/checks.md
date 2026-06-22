@@ -9,7 +9,7 @@ together by the CLI.
 | ID | Status | Description |
 | --- | --- | --- |
 | `crawl` | implemented | Crawl pages and collect SEO, metadata, tracking, and security data |
-| `analyze` | implemented | Turn crawl JSON into an actionable Markdown TODO report |
+| `analyze` | implemented | Turn crawl JSON into a Markdown TODO report and `*-fix-manifest.json` for agent orchestration |
 | `security-headers` | implemented | Verify HTTP security headers (CSP, HSTS, etc.) |
 | `dns` | implemented | Verify DNS records, SPF/DMARC, and domain ownership signals |
 | `robots-txt` | implemented | Report robots.txt presence, sitemap directives, and crawl blocks |

@@ -33,6 +33,7 @@ async function main(): Promise<void> {
             message: "TODO report generated",
             input: basename(result.inputPath),
             output: result.reportPath,
+            manifest: result.manifestPath,
             pagesAnalyzed: result.pagesAnalyzed,
           },
           null,

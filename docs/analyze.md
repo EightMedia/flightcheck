@@ -25,7 +25,7 @@ pnpm run analyze -- ./flightcheck/20260618.1413-eight.nl-raw.json --errors-only
 ```
 
 Zonder `--output` wordt het Markdown-bestand afgeleid van de input: `-raw.json` wordt
-`-report.md`.
+`-report.md`. Dezelfde basename krijgt ook `-fix-manifest.json` voor agent-orchestratie.
 
 ## Output-structuur
 
@@ -207,3 +207,8 @@ await runAnalyzeCheck({
 
 - Script valideert input tegen het verwachte flightcheck report-schema.
 - Bij schemafouten stopt de script met een duidelijke foutmelding.
+
+## AI agents
+
+Voor geautomatiseerde fixes via agents: zie [agent-fixes.md](./agent-fixes.md) (fix manifest,
+work packages, PR-conventies, `pnpm run orchestrate`, en `prompts/fix/`).

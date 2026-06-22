@@ -27,6 +27,7 @@ async function main() {
             message: "TODO report generated",
             input: basename(result.inputPath),
             output: result.reportPath,
+            manifest: result.manifestPath,
             pagesAnalyzed: result.pagesAnalyzed,
         }, null, 2)}\n`);
     });
