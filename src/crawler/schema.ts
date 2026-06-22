@@ -13,6 +13,14 @@ export type TrackingItem = {
   id: string;
 };
 
+export type CrawlIssueSeverity = "critical" | "error" | "warning" | "review";
+
+export type CrawlIssue = {
+  id: string;
+  severity: CrawlIssueSeverity;
+  message: string;
+};
+
 export type VerificationRecord = {
   url: string;
   status: number | null;
@@ -22,6 +30,7 @@ export type VerificationRecord = {
   metaDescription: string;
   robots: string;
   template: string;
+  mainCount: number | null;
   charset: string;
   language: string;
   colorScheme: string;
@@ -59,6 +68,12 @@ export type VerificationRecord = {
     secrets: SecretFinding[];
     scannedAssets: number;
   };
+  images?: {
+    issues: CrawlIssue[];
+  };
+  a11yStatic?: {
+    issues: CrawlIssue[];
+  };
   note?: string;
   error?: string;
 };
@@ -73,6 +88,7 @@ export function createEmptyVerificationRecord(url: string, status: number | null
     metaDescription: "",
     robots: "",
     template: "",
+    mainCount: null,
     charset: "",
     language: "",
     colorScheme: "",

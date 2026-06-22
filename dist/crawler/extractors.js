@@ -3,6 +3,7 @@ import { createEmptyVerificationRecord } from "./schema.js";
 import { extractTracking } from "./tracking.js";
 import { resolveUrlMaybe } from "./urlUtils.js";
 import { CHECK_GROUPS } from "./checkGroups.js";
+import { extractA11yStaticIssues, extractImageIssues } from "./tier1Extractors.js";
 function textOrEmpty(value) {
     return (value ?? "").trim();
 }
@@ -37,6 +38,7 @@ export function extractVerificationRecord(html, url, status, contentType, active
         result.colorScheme = attrOrEmpty($, 'meta[name="color-scheme"]', "content");
         result.themeColor = attrOrEmpty($, 'meta[name="theme-color"]', "content");
         result.viewport = attrOrEmpty($, 'meta[name="viewport"]', "content");
+        result.mainCount = $("main").length;
         result.language = textOrEmpty($("html").first().attr("lang"));
         result.charset = textOrEmpty($("meta[charset]").first().attr("charset"));
         const doctypeMatch = html.match(/<!doctype\s+([^>]+)>/i);
@@ -78,6 +80,12 @@ export function extractVerificationRecord(html, url, status, contentType, active
     }
     if (activeGroups.has("tracking")) {
         result.tracking = extractTracking(html);
+    }
+    if (activeGroups.has("images")) {
+        result.images = { issues: extractImageIssues($) };
+    }
+    if (activeGroups.has("a11y-static")) {
+        result.a11yStatic = { issues: extractA11yStaticIssues($) };
     }
     return result;
 }

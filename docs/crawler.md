@@ -13,12 +13,24 @@ Deze crawler verzamelt per URL verificatie-data voor SEO, metadata, tracking en 
 ## CLI gebruik
 
 ```bash
-pnpm run crawl -- https://example.com
+pnpm run flightcheck -- https://example.com
 ```
+
+Standaard schrijft flightcheck zowel JSON als een Markdown TODO-rapport in `./flightcheck/`, met
+bestandsnamen op basis van timestamp en hostname, bijvoorbeeld:
+
+- `./flightcheck/20260618.1413-eight.nl-raw.json`
+- `./flightcheck/20260618.1413-eight.nl-report.md`
+
+Met `--json-only` sla je het Markdown-rapport over.
 
 Belangrijkste flags:
 
-- `--output <file>` default `./h1-report.json`
+- `--output <file>` default `{timestamp}-{hostname}-raw.json` in `./flightcheck/`
+- `--report <file>` default `{timestamp}-{hostname}-report.md` in `./flightcheck/`
+- `--json-only` alleen JSON schrijven, geen Markdown-rapport
+- `--checks <ids>` comma-separated checks; default: all implemented checks (`crawl`, `security-headers`, `dns`, `robots-txt`, `sitemap`, `analyze`)
+- `--parallel` run independent checks in the same wave concurrently
 - `--max-pages <n>`
 - `--delay-ms <n>`
 - `--timeout-ms <n>`
@@ -36,14 +48,14 @@ Belangrijkste flags:
 Voorbeelden:
 
 ```bash
-pnpm run crawl -- https://example.com --max-pages 200 --concurrency 5 --delay-ms 100
-pnpm run crawl -- https://example.com --sitemap-start
-pnpm run crawl -- https://example.com --exclude "/search,/preview"
-pnpm run crawl -- https://example.com --respect-robots-txt
-pnpm run crawl -- https://example.com --quiet
-pnpm run crawl -- https://example.com --only security
-pnpm run crawl -- https://example.com --skip tracking,social
-pnpm run crawl -- https://example.com --only security --reveal-secrets
+pnpm run flightcheck -- https://example.com --max-pages 200 --concurrency 5 --delay-ms 100
+pnpm run flightcheck -- https://example.com --sitemap-start
+pnpm run flightcheck -- https://example.com --exclude "/search,/preview"
+pnpm run flightcheck -- https://example.com --respect-robots-txt
+pnpm run flightcheck -- https://example.com --quiet
+pnpm run flightcheck -- https://example.com --only security
+pnpm run flightcheck -- https://example.com --skip tracking,social
+pnpm run flightcheck -- https://example.com --only security --reveal-secrets
 ```
 
 ## Check-groepen
@@ -53,13 +65,18 @@ De extractie is opgedeeld in benoemde groepen. Standaard draaien alle groepen; m
 `--skip` kunnen niet samen worden gebruikt.
 
 - `meta` — title, h1, description, robots, charset, language, viewport, doctype,
-  canonical, color-scheme, theme-color.
+  canonical, color-scheme, theme-color, main landmark count.
 - `icons` — favicon en icons.
 - `social` — Open Graph en Twitter metadata.
 - `tracking` — GTM, GA4, UA, Matomo, Facebook Pixel, Plausible.
 - `security` — scan op gelekte API-keys en secrets (zie hieronder).
 
-### Security-scan
+### Sitemap parsing
+
+`sitemap.xml` can be a **sitemap index** (`<sitemapindex>`) that points to child sitemap files
+via nested `<loc>` entries, or a **urlset** with page URLs. The crawler follows sitemap
+index files recursively and treats apex and `www` hostnames as the same site (so
+`https://eight.nl/sitemap.xml` can discover URLs on `https://www.eight.nl/`).
 
 De `security`-groep scant zowel de pagina-HTML als de gelinkte same-origin
 JavaScript-bestanden (`<script src>`) op gelekte API-keys en secrets. Gedeelde
@@ -84,6 +101,7 @@ Elke record bevat:
 
 - URL en status
 - H1/title/meta velden
+- `mainCount` (aantal `<main>`-elementen, `null` wanneer meta-groep overgeslagen is)
 - canonical/favicon/icons
 - OG en Twitter metadata
 - tracking detectie (GTM, GA4, UA, Matomo, Facebook Pixel, Plausible)

@@ -2,61 +2,158 @@
 
 Deze script leest een crawl JSON-bestand en maakt een Markdown TODO-rapport met ontbrekende attributen.
 
+De hoofd-CLI (`flightcheck`) genereert dit rapport standaard na elke crawl. Gebruik dit
+standalone script alleen als je een bestaand JSON-bestand opnieuw wilt analyseren zonder
+opnieuw te crawlen.
+
 ## Doel
 
-- Ontbrekende velden per pagina zichtbaar maken.
-- Prioriteiten tonen op basis van frequentie van missende velden.
-- Een direct bruikbare checklist geven voor developers of AI agents.
+- Actiegerichte TODO-lijsten maken voor developers of AI agents.
+- Issues groeperen op waar ze gefixt moeten worden: site-wide, template, of per pagina.
+- Duidelijk maken hoe breed een issue voorkomt over alle gescande pagina's.
 
 ## Gebruik
 
 ```bash
-pnpm run analyze -- ./report.json --output ./todo-report.md
+pnpm run analyze -- ./flightcheck/20260618.1413-eight.nl-raw.json
 ```
 
 Alleen fouten en missende velden opnemen:
 
 ```bash
-pnpm run analyze -- ./report.json --output ./todo-report.md --errors-only
+pnpm run analyze -- ./flightcheck/20260618.1413-eight.nl-raw.json --errors-only
 ```
 
-## Output
+Zonder `--output` wordt het Markdown-bestand afgeleid van de input: `-raw.json` wordt
+`-report.md`.
 
-De output is Markdown met:
+## Output-structuur
 
-- `🔑 Security`: als er secrets/API-keys zijn gevonden, bovenaan een sectie per URL
-  met de bevindingen (severity `critical` eerst), inclusief provider, gemaskeerde
-  waarde en bron. Bij gemaskeerde waarden staat er een hint om de crawl opnieuw te
-  draaien met `--reveal-secrets`.
-- `Important warnings`: geaggregeerde lijst van belangrijke waarschuwingen (zie hieronder).
-- `Priority overview`: geaggregeerde lijst van missende velden.
-- `TODOs by template`: TODO's gebundeld per template (alleen als er template-meta tags gevonden zijn, zie hieronder).
-- `Page-level TODO list`: per URL een checklist-item met ontbrekende attributen en waarschuwingen.
-- `Suggested workflow`: korte stappen om iteratief te verbeteren.
+Het rapport is opgebouwd voor AI agents en developers. Werk het van boven naar beneden af.
 
-Met `--errors-only` blijven pagina's met security-bevindingen in het rapport staan,
-ook als ze verder geen ontbrekende velden hebben.
+### Summary
 
-## Warnings
+Korte telling: hoeveel site-wide fixes, template-fixes en page-specific fixes er zijn. Wanneer Tier 1
+checks zijn meegedraaid, bevat de summary ook infra-tellingen (DNS, security headers, robots.txt)
+en crawl-gebaseerde image/a11y issues.
 
-Naast missende velden controleert de script op veelvoorkomende fouten die als waarschuwing worden gemarkeerd:
+### 🔑 Security
 
-- `noindex`: de pagina heeft een `<meta name="robots">` met `noindex` (of `none`). Zoekmachines wordt verteld de pagina niet te indexeren. Dit is meestal een fout op live pagina's.
-- `nofollow`: de pagina heeft een `<meta name="robots">` met `nofollow` (of `none`). Zoekmachines wordt verteld de links op de pagina niet te volgen.
+Secrets/API-keys per URL (severity `critical` eerst). Bij gemaskeerde waarden staat een hint
+om opnieuw te crawlen met `--reveal-secrets`.
 
-Waarschuwingen worden zowel geaggregeerd (`Important warnings`) als per pagina (`Page-level TODO list`) getoond. Met `--errors-only` blijven pagina's met alleen een waarschuwing ook zichtbaar.
+### DNS
 
-## TODOs by template
+Overzicht van A/MX/NS-records, SPF/DMARC-signalen en actionable todos voor ontbrekende mail-security
+records.
 
-Veel van onze sites zetten een `<meta name="template">` tag met de templatenaam als waarde (bijv. `product`, `home`). De crawler leest deze waarde uit in het veld `template`.
+### Security headers
 
-Als er minimaal één pagina met een template gevonden is, voegt de script een `TODOs by template`-sectie toe. Daarin worden de TODO's gebundeld per template:
+Resultaat van de `security-headers` check: ontbrekende HSTS, CSP, clickjacking-bescherming, enz.
 
-- Pagina's worden gegroepeerd op templatenaam (gesorteerd op aantal pagina's, aflopend).
-- Per template worden de waarschuwingen en missende velden geaggregeerd, met de notatie `count/totaal page(s)`.
-- Pagina's zonder template komen in de groep `(no template)`.
+### Robots.txt & sitemap
 
-Zo kun je een probleem dat in een template zit één keer oplossen voor alle pagina's die dat template gebruiken. Het veld `template` wordt ook per pagina in de `Page-level TODO list` getoond.
+Resultaat van de `robots-txt` en `sitemap` checks (overgeslagen in redirect-only mode).
+
+### Domain redirect
+
+Wanneer de start-URL een HTTP-redirect teruggeeft, schakelt flightcheck over op
+redirect-only mode. Het rapport toont statuscode, `Location`, target-bereikbaarheid en
+redirect-issues. Daarnaast wordt de alternate host (apex ↔ www) gecontroleerd: de
+niet-canonical host moet permanent doorverwijzen naar de canonical host uit de start-URL
+(of het redirect-doel). Er wordt niet gecrawld.
+
+### Fix site-wide (all pages)
+
+Issues die op **elke** gescande pagina voorkomen. Fix één keer in root layout, shared head
+partial of global SEO config.
+
+Voorbeeld:
+
+```markdown
+- [ ] Add color-scheme meta tag to site layout head
+- [ ] Add Open Graph meta tags to site layout head: og:url, og:site_name
+- [ ] Add Twitter meta tags to site layout head: twitter:card, twitter:title, twitter:description, twitter:image
+```
+
+### Fix in templates
+
+Alleen als `<meta name="template">` tags gevonden zijn. Issues die op **alle** pagina's met
+dezelfde template voorkomen, maar niet op de hele site. Fix in het template-bestand.
+
+Voorbeeld:
+
+```markdown
+### Template: `work` (15 page(s))
+
+- [ ] Add color-scheme meta tag to template head
+- [ ] Add Twitter meta tags to template head: twitter:card, twitter:title, twitter:description, twitter:image
+```
+
+### Fix per page
+
+Resterende issues per URL — meestal page-specific content. Site-wide en template-fixes worden
+hier niet herhaald. Bevat ook Tier 1 crawl-issues zoals ontbrekende image alt-teksten en
+statische a11y-hints wanneer de `images` of `a11y-static` crawl groups actief zijn.
+
+### Issue coverage
+
+Referentietabel: hoe vaak elk issue voorkomt en of het site-wide, template-scoped of
+page-specific is.
+
+Voorbeeld:
+
+```markdown
+- `colorScheme`: 20/20 pages (site-wide)
+- `h1`: 1/20 pages (page-specific)
+```
+
+### How to use this report
+
+Stappenplan om iteratief te verbeteren.
+
+## Checks
+
+### Missende velden
+
+Ontbrekende SEO/metadata-velden worden als actionable todo's gerapporteerd. `og.*`- en
+`twitter.*`-velden worden gebundeld.
+
+### Robots meta
+
+Een ontbrekende robots meta tag is geen missend veld. Alleen expliciete `noindex`/`nofollow`
+(of `none`) geven een todo:
+
+- Site-wide: `Remove noindex from shared robots meta tag in site layout`
+- Per page: `Remove noindex from page robots meta tag`
+
+### Main landmark
+
+Elke pagina moet precies één `<main>` bevatten. Issues worden site-wide, template-wide of
+per pagina gerapporteerd.
+
+### Tier 1 checks in analyze
+
+Wanneer je meerdere checks via `runChecks` draait, geeft analyze automatisch Tier 1-output
+door uit eerdere waves:
+
+```bash
+pnpm run flightcheck -- https://example.com --checks crawl,security-headers,dns,robots-txt,sitemap,analyze --parallel
+```
+
+Programmatisch:
+
+```typescript
+await runAnalyzeCheck({
+  records: crawl.records,
+  tier1: {
+    securityHeaders,
+    dns,
+    robotsTxt,
+    sitemap,
+  },
+});
+```
 
 ## Notes
 

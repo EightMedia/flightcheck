@@ -1,19 +1,17 @@
 #!/usr/bin/env node
 
 import { Command } from "commander";
+import { runChecks } from "./checks/runner.js";
+import { DEFAULT_CHECK_IDS, type CheckId } from "./checks/types.js";
 import {
   DEFAULT_BURST_DELAY_MS,
   DEFAULT_CONCURRENCY,
   DEFAULT_DELAY_MS,
   DEFAULT_MAX_PAGES,
-  DEFAULT_OUTPUT_PATH,
-  DEFAULT_SITEMAP_URL_SUFFIX,
   DEFAULT_TIMEOUT_MS,
 } from "./crawler/defaults.js";
-import { resolveActiveGroups } from "./crawler/checkGroups.js";
-import { runCrawler } from "./crawler/runCrawler.js";
-import { collectUrlsFromSitemap } from "./crawler/sitemap.js";
-import { isHttpUrl, matchesExcludePattern, normalizeUrl, parseExcludePatterns } from "./crawler/urlUtils.js";
+import { buildDefaultOutputPaths } from "./crawler/outputPaths.js";
+import { isHttpUrl, normalizeUrl, parseExcludePatterns } from "./crawler/urlUtils.js";
 
 async function main(): Promise<void> {
   const sanitizedArgv = [...process.argv];
@@ -26,9 +24,14 @@ async function main(): Promise<void> {
 
   program
     .name("flightcheck")
-    .description("Crawl a website and output verification report as JSON.")
+    .description("Crawl a website and generate JSON + Markdown TODO reports.")
     .argument("<startUrl>", "Start URL for the crawl")
-    .option("--output <file>", "Output JSON file path", DEFAULT_OUTPUT_PATH)
+    .option("--output <file>", "Output JSON file path")
+    .option("--report <file>", "Output Markdown TODO report path")
+    .option("--json-only", "Skip Markdown TODO report generation", false)
+    .option("--errors-only", "Include only records with errors or missing attributes in the report", false)
+    .option("--parallel", "Run independent checks in parallel", false)
+    .option("--checks <ids>", "Comma-separated checks to run (crawl,analyze,lighthouse,security-headers,dns,robots-txt,sitemap)")
     .option("--max-pages <n>", "Maximum number of pages", String(DEFAULT_MAX_PAGES))
     .option("--delay-ms <n>", "Delay between requests in ms", String(DEFAULT_DELAY_MS))
     .option("--timeout-ms <n>", "Request timeout in ms", String(DEFAULT_TIMEOUT_MS))
@@ -50,71 +53,80 @@ async function main(): Promise<void> {
         throw new Error("<start-url> must be a valid http(s) URL.");
       }
 
-      const maxPages = Number(opts.maxPages);
-      const delayMs = Number(opts.delayMs);
-      const timeoutMs = Number(opts.timeoutMs);
-      const concurrency = Number(opts.concurrency);
-      const burstDelayMs = Number(opts.burstDelayMs);
-      const outputPath = opts.output as string;
-
-      if (!Number.isFinite(maxPages) || maxPages <= 0) throw new Error("--max-pages must be a positive number.");
-      if (!Number.isFinite(delayMs) || delayMs < 0) throw new Error("--delay-ms must be zero or a positive number.");
-      if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) throw new Error("--timeout-ms must be a positive number.");
-      if (!Number.isFinite(concurrency) || concurrency <= 0) throw new Error("--concurrency must be a positive number.");
-      if (!Number.isFinite(burstDelayMs) || burstDelayMs < 0) {
-        throw new Error("--burst-delay-ms must be zero or a positive number.");
-      }
-
-      let activeGroups;
-      try {
-        activeGroups = resolveActiveGroups({ only: opts.only as string | undefined, skip: opts.skip as string | undefined });
-      } catch (error) {
-        throw new Error(error instanceof Error ? error.message : String(error));
-      }
-      const revealSecrets = Boolean(opts.revealSecrets);
-
       const normalizedStartUrl = normalizeUrl(startUrl);
-      const origin = new URL(normalizedStartUrl).origin;
-      const excludePatterns = parseExcludePatterns(opts.exclude as string[]);
-      const sitemapUrl = (opts.sitemapUrl as string | undefined) ?? `${origin}${DEFAULT_SITEMAP_URL_SUFFIX}`;
+      const defaultPaths = buildDefaultOutputPaths(normalizedStartUrl);
+      const outputPath = opts.output as string | undefined;
+      const reportPath = opts.report as string | undefined;
+      const jsonOnly = Boolean(opts.jsonOnly);
+      const errorsOnly = Boolean(opts.errorsOnly);
+      const checks: CheckId[] = opts.checks
+        ? (opts.checks as string).split(",").map((value) => value.trim()).filter(Boolean) as CheckId[]
+        : jsonOnly
+          ? ["crawl"]
+          : DEFAULT_CHECK_IDS;
 
-      let seedUrls = [normalizedStartUrl];
-      if (opts.sitemapStart as boolean) {
-        const sitemapUrls = await collectUrlsFromSitemap(sitemapUrl, origin, timeoutMs);
-        seedUrls = Array.from(sitemapUrls);
-        if (!seedUrls.includes(normalizedStartUrl)) {
-          seedUrls.unshift(normalizedStartUrl);
+      const { outputs, results } = await runChecks({
+        startUrl: normalizedStartUrl,
+        checks,
+        parallel: Boolean(opts.parallel),
+        crawl: {
+          startUrl: normalizedStartUrl,
+          outputPath: outputPath ?? defaultPaths.rawJson,
+          maxPages: Number(opts.maxPages),
+          delayMs: Number(opts.delayMs),
+          timeoutMs: Number(opts.timeoutMs),
+          concurrency: Number(opts.concurrency),
+          burstDelayMs: Number(opts.burstDelayMs),
+          sitemapStart: opts.sitemapStart as boolean,
+          sitemapUrl: opts.sitemapUrl as string | undefined,
+          excludePatterns: parseExcludePatterns(opts.exclude as string[]),
+          respectRobotsTxt: opts.respectRobotsTxt as boolean,
+          only: opts.only as string | undefined,
+          skip: opts.skip as string | undefined,
+          revealSecrets: opts.revealSecrets as boolean,
+          quiet: opts.quiet as boolean,
+        },
+        analyze: {
+          reportPath: reportPath ?? defaultPaths.reportMd,
+          errorsOnly,
+        },
+      });
+
+      const crawlResult = outputs.crawl;
+      const analyzeResult = outputs.analyze;
+      const crawlFailure = results.find((result) => result.id === "crawl" && result.status === "failure");
+      if (crawlFailure) {
+        throw new Error(crawlFailure.error ?? "Crawl check failed.");
+      }
+
+      const summary: Record<string, unknown> = {
+        message: crawlResult?.interrupted ? "Flightcheck interrupted, partial reports written" : "Flightcheck reports written",
+        redirectOnly: outputs.redirect?.redirectOnly ?? false,
+        checks: results.map((result) => ({ id: result.id, status: result.status, durationMs: result.durationMs })),
+      };
+
+      if (outputs.redirect?.redirectOnly) {
+        summary.redirect = {
+          url: outputs.redirect.url,
+          status: outputs.redirect.status,
+          location: outputs.redirect.location,
+          resolvedTarget: outputs.redirect.resolvedTarget,
+          issues: outputs.redirect.issues.length,
+        };
+      }
+
+      if (crawlResult) {
+        summary.output = crawlResult.outputPath;
+        summary.pages = crawlResult.records.length;
+        summary.secretsFound = crawlResult.secretsFound;
+        summary.interrupted = crawlResult.interrupted;
+        if (crawlResult.secretsFound > 0 && !opts.revealSecrets) {
+          summary.hint = `${crawlResult.secretsFound} secret(s) found (masked). Re-run with --reveal-secrets to show full values.`;
         }
       }
 
-      seedUrls = seedUrls.filter((url) => !matchesExcludePattern(url, excludePatterns));
-
-      const { records, interrupted } = await runCrawler({
-        startUrl: normalizedStartUrl,
-        outputPath,
-        maxPages: Math.floor(maxPages),
-        delayMs: Math.floor(delayMs),
-        timeoutMs: Math.floor(timeoutMs),
-        concurrency: Math.floor(concurrency),
-        burstDelayMs: Math.floor(burstDelayMs),
-        seedUrls,
-        excludePatterns,
-        respectRobotsTxt: opts.respectRobotsTxt as boolean,
-        activeGroups,
-        revealSecrets,
-        quiet: opts.quiet as boolean,
-      });
-
-      const totalSecrets = records.reduce((sum, record) => sum + (record.security?.secrets.length ?? 0), 0);
-      const summary: Record<string, unknown> = {
-        message: interrupted ? "H1 crawl interrupted, partial report written" : "H1 crawl report written",
-        output: outputPath,
-        pages: records.length,
-        secretsFound: totalSecrets,
-        interrupted,
-      };
-      if (totalSecrets > 0 && !revealSecrets) {
-        summary.hint = `${totalSecrets} secret(s) found (masked). Re-run with --reveal-secrets to show full values.`;
+      if (analyzeResult) {
+        summary.report = analyzeResult.reportPath;
       }
 
       process.stdout.write(`${JSON.stringify(summary, null, 2)}\n`);

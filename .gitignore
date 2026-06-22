@@ -1,4 +1,5 @@
 node_modules
 storage/*
 report.json
-output/*h1-report.json
+flightcheck/*
+!flightcheck/.gitkeep

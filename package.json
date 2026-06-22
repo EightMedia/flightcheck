@@ -8,6 +8,11 @@
     "type": "git",
     "url": "git+https://github.com/EightMedia/flightcheck.git"
   },
+  "main": "./dist/index.js",
+  "exports": {
+    ".": "./dist/index.js",
+    "./checks": "./dist/checks/index.js"
+  },
   "bin": {
     "flightcheck": "dist/cli.js",
     "flightcheck-analyze": "dist/analyze.js"
@@ -22,6 +27,7 @@
   },
   "scripts": {
     "dev": "tsx src/cli.ts --help",
+    "flightcheck": "tsx src/cli.ts",
     "crawl": "tsx src/cli.ts",
     "analyze": "tsx src/analyze.ts",
     "build": "tsc",

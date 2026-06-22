@@ -6,11 +6,38 @@ Crawler voor site-verificatie met output naar JSON.
 
 ```bash
 pnpm install
-pnpm run crawl -- https://example.com
-pnpm run analyze -- ./flightcheck-report.json --output ./todo-report.md
+pnpm run flightcheck -- https://example.com
+```
+
+This writes timestamped files in `./flightcheck/`, for example:
+
+- `./flightcheck/20260618.1413-eight.nl-raw.json`
+- `./flightcheck/20260618.1413-eight.nl-report.md`
+
+By default this runs all implemented checks: crawl, security headers, DNS, robots.txt,
+sitemap validation, and analyze. If the start URL is a domain redirect, only redirect
+validation, DNS, and analyze run. Use `--checks crawl` to force a full crawl on redirect
+domains. Use `--checks` for a subset, or `--json-only` for crawl JSON only.
+
+To re-analyze an existing JSON file without re-crawling:
+
+```bash
+pnpm run analyze -- ./flightcheck/20260618.1413-eight.nl-raw.json
 ```
 
 ## Documentatie
 
+- `docs/qc-checks-plan.md` — roadmap for full site QC checks
+- `docs/checks.md` — modular check API and extension guide
 - `docs/crawler.md`
 - `docs/analyze.md`
+
+## Programmatic API
+
+```typescript
+import { runChecks, runCrawlCheck, runAnalyzeCheck } from "@eightmedia/flightcheck";
+
+const { outputs } = await runChecks({
+  startUrl: "https://example.com",
+});
+```
