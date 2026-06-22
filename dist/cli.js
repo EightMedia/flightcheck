@@ -35,7 +35,7 @@ async function main() {
         acc.push(value);
         return acc;
     }, [])
-        .option("--only <groups>", "Run only these check groups (comma-separated): meta,icons,social,tracking,security")
+        .option("--only <groups>", "Run only these check groups (comma-separated): meta,icons,social,tracking,stack,security")
         .option("--skip <groups>", "Skip these check groups (comma-separated)")
         .option("--reveal-secrets", "Show full secret values instead of masked ones", false)
         .action(async (startUrl, opts) => {

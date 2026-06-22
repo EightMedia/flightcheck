@@ -1,6 +1,7 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { buildMarkdown, parseReport, type ReportRecord, type Tier1ReportData } from "../analyze/report.js";
+import { buildStackProfile } from "../analyze/stack.js";
 import { defaultReportPathForInput } from "../crawler/outputPaths.js";
 import type { AnalyzeCheckResult } from "./types.js";
 
@@ -38,8 +39,17 @@ function loadRecords(options: AnalyzeCheckOptions): { records: ReportRecord[]; i
 export async function runAnalyzeCheck(options: AnalyzeCheckOptions): Promise<AnalyzeCheckResult> {
   const { records, inputPath } = loadRecords(options);
   const reportPath = resolve(options.reportPath ?? defaultReportPathForInput(inputPath));
-  const markdown = buildMarkdown(inputPath, records, options.errorsOnly ?? false, options.tier1, {
-    redirectOnly: options.redirectOnly ?? false,
+  const redirectOnly = options.redirectOnly ?? false;
+  const stackProfile = redirectOnly
+    ? { detections: [], tracking: { tagManager: [], analytics: [] } }
+    : await buildStackProfile(records, {
+        securityHeaders: options.tier1?.securityHeaders,
+        dns: options.tier1?.dns,
+        robotsTxt: options.tier1?.robotsTxt,
+      });
+  const markdown = await buildMarkdown(inputPath, records, options.errorsOnly ?? false, options.tier1, {
+    redirectOnly,
+    stackProfile,
   });
 
   if (options.writeReport !== false) {

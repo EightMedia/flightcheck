@@ -158,11 +158,10 @@ export function countTier1InfraIssues(tier1) {
         (tier1.robotsTxt?.issues.length ?? 0) +
         (tier1.sitemap?.issues.length ?? 0));
 }
-export function buildTier1SummaryLines(tier1, imageIssuePages, imageIssueCount, a11yIssuePages, a11yIssueCount, redirectOnly = false) {
-    const lines = [];
+function buildInfraSummaryParts(tier1, redirectOnly) {
     const parts = [];
     if (redirectOnly) {
-        lines.push("- Mode: redirect-only (start URL returns a redirect; crawl and sitemap checks were skipped)");
+        parts.push("redirect-only mode");
     }
     if (tier1.redirect) {
         parts.push(`redirect (${tier1.redirect.issues.length} issue(s))`);
@@ -179,14 +178,30 @@ export function buildTier1SummaryLines(tier1, imageIssuePages, imageIssueCount, 
     if (tier1.sitemap) {
         parts.push(`sitemap (${tier1.sitemap.issues.length} issue(s))`);
     }
-    if (parts.length > 0) {
-        lines.push(`- Tier 1 infra: ${parts.join(", ")}`);
+    return parts;
+}
+export function buildIssuesSummarySection(tier1, crawlCounts, redirectOnly, performanceChecked = false, performanceIssueCount = 0, performancePageCount = 0) {
+    const lines = ["### Issues summary", ""];
+    const infraParts = buildInfraSummaryParts(tier1, redirectOnly);
+    const infraIssueCount = countTier1InfraIssues(tier1);
+    if (infraParts.length > 0) {
+        lines.push(`- **Infra:** ${infraIssueCount} issue(s) — ${infraParts.join(", ")}`);
     }
-    if (imageIssueCount > 0) {
-        lines.push(`- Image alt issues: ${imageIssueCount} on ${imageIssuePages} page(s)`);
+    if (!redirectOnly) {
+        lines.push(`- **SEO:** ${crawlCounts.seo.issueCount} issue(s) on ${crawlCounts.seo.pageCount} page(s)`, `- **A11y:** ${crawlCounts.a11y.issueCount} issue(s) on ${crawlCounts.a11y.pageCount} page(s) — image alt + static hints`, `- **Best practices:** ${crawlCounts.bestPractices.issueCount} issue(s) on ${crawlCounts.bestPractices.pageCount} page(s) — landmarks, robots, template meta`);
+        if (crawlCounts.security.issueCount > 0) {
+            lines.push(`- **Security:** ${crawlCounts.security.issueCount} finding(s) on ${crawlCounts.security.pageCount} page(s)`);
+        }
+        if (performanceChecked) {
+            lines.push(`- **Performance:** ${performanceIssueCount} issue(s) on ${performancePageCount} page(s)`);
+        }
+        else {
+            lines.push("- **Performance:** not checked");
+        }
     }
-    if (a11yIssueCount > 0) {
-        lines.push(`- Static a11y issues: ${a11yIssueCount} on ${a11yIssuePages} page(s)`);
+    else if (infraParts.length === 0) {
+        lines.push("- No issues found.");
     }
+    lines.push("");
     return lines;
 }

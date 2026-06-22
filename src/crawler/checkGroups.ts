@@ -1,4 +1,4 @@
-export const CHECK_GROUPS = ["meta", "icons", "social", "tracking", "security", "images", "a11y-static"] as const;
+export const CHECK_GROUPS = ["meta", "icons", "social", "tracking", "stack", "security", "images", "a11y-static"] as const;
 
 export type CheckGroup = (typeof CHECK_GROUPS)[number];
 

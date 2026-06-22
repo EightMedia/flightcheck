@@ -10,6 +10,7 @@ import {
 } from "./defaults.js";
 import { CHECK_GROUPS, type CheckGroup } from "./checkGroups.js";
 import { extractInternalLinks, extractVerificationRecord } from "./extractors.js";
+import { detectStackFromHtml } from "./stack.js";
 import { extractSameOriginScripts } from "./jsAssets.js";
 import { loadRobotsPolicy } from "./robots.js";
 import { writeReportToFile } from "./reporter.js";
@@ -53,6 +54,10 @@ export async function runCrawler(options: RunCrawlerOptions): Promise<{ records:
   }
   const activeGroups = options.activeGroups ?? new Set<CheckGroup>(CHECK_GROUPS);
   const revealSecrets = options.revealSecrets ?? false;
+  if (activeGroups.has("stack")) {
+    const { loadTechnologyIndex } = await import("./stack.js");
+    await loadTechnologyIndex();
+  }
   const jsScanCache = new Map<string, SecretFinding[]>();
   const failedAssets = new Set<string>();
 
@@ -162,6 +167,9 @@ export async function runCrawler(options: RunCrawlerOptions): Promise<{ records:
       const effectiveContentType = contentType?.type ?? "";
 
       const record = extractVerificationRecord(html, currentUrl, status, effectiveContentType, activeGroups);
+      if (activeGroups.has("stack") && effectiveContentType.includes("text/html") && html) {
+        record.stack = { detections: await detectStackFromHtml(html, currentUrl) };
+      }
       if (activeGroups.has("security") && effectiveContentType.includes("text/html") && html) {
         record.security = await scanSecurity(html, currentUrl);
       }

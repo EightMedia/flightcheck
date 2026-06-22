@@ -3,6 +3,7 @@ import pino from "pino";
 import { DEFAULT_BURST_DELAY_MS, DEFAULT_CONCURRENCY, DEFAULT_DELAY_MS, DEFAULT_MAX_PAGES, DEFAULT_TIMEOUT_MS, DEFAULT_USER_AGENT, } from "./defaults.js";
 import { CHECK_GROUPS } from "./checkGroups.js";
 import { extractInternalLinks, extractVerificationRecord } from "./extractors.js";
+import { detectStackFromHtml } from "./stack.js";
 import { extractSameOriginScripts } from "./jsAssets.js";
 import { loadRobotsPolicy } from "./robots.js";
 import { writeReportToFile } from "./reporter.js";
@@ -27,6 +28,10 @@ export async function runCrawler(options) {
     }
     const activeGroups = options.activeGroups ?? new Set(CHECK_GROUPS);
     const revealSecrets = options.revealSecrets ?? false;
+    if (activeGroups.has("stack")) {
+        const { loadTechnologyIndex } = await import("./stack.js");
+        await loadTechnologyIndex();
+    }
     const jsScanCache = new Map();
     const failedAssets = new Set();
     const fetchText = async (assetUrl) => {
@@ -130,6 +135,9 @@ export async function runCrawler(options) {
             const status = response?.statusCode ?? null;
             const effectiveContentType = contentType?.type ?? "";
             const record = extractVerificationRecord(html, currentUrl, status, effectiveContentType, activeGroups);
+            if (activeGroups.has("stack") && effectiveContentType.includes("text/html") && html) {
+                record.stack = { detections: await detectStackFromHtml(html, currentUrl) };
+            }
             if (activeGroups.has("security") && effectiveContentType.includes("text/html") && html) {
                 record.security = await scanSecurity(html, currentUrl);
             }

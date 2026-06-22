@@ -33,9 +33,37 @@ Het rapport is opgebouwd voor AI agents en developers. Werk het van boven naar b
 
 ### Summary
 
-Korte telling: hoeveel site-wide fixes, template-fixes en page-specific fixes er zijn. Wanneer Tier 1
-checks zijn meegedraaid, bevat de summary ook infra-tellingen (DNS, security headers, robots.txt)
-en crawl-gebaseerde image/a11y issues.
+Korte telling: hoeveel pagina's gescand, hoeveel pagina's issues hebben, site-wide fixes,
+welke templates fixes nodig hebben, en een **Issues summary** per categorie.
+
+Voorbeeld:
+
+```markdown
+- Pages analyzed: 24
+- Pages with issues: 13
+- Site-wide fixes: 3
+- Templates that need fixes: `work`, `blog`
+- Pages with page-specific fixes: 5
+
+### Issues summary
+
+- **Infra:** 4 issue(s) — DNS (1), security headers (2), robots.txt (1)
+- **SEO:** 42 issue(s) on 18 page(s)
+- **A11y:** 8 issue(s) on 6 page(s) — image alt + static hints
+- **Best practices:** 3 issue(s) on 2 page(s) — landmarks, robots, template meta
+- **Performance:** not checked
+```
+
+Categorieën:
+
+| Categorie | Bron | Voorbeelden |
+| --- | --- | --- |
+| **Infra** | Tier 1 checks | Redirect, DNS, security headers, robots.txt, sitemap |
+| **SEO** | Crawl metadata | Ontbrekende title, meta, OG, Twitter, canonical, favicon |
+| **A11y** | Crawl groups `images` + `a11y-static` | Image alt, heading hierarchy, form labels, lang, tabindex |
+| **Best practices** | Crawl warnings | Main landmark, noindex/nofollow, template meta tag |
+| **Security** | Crawl secrets scan | Alleen getoond wanneer secrets gevonden |
+| **Performance** | `lighthouse` / `performance` check (planned) | `not checked` tot Tier 3 actief is |
 
 ### How to use this report
 
@@ -83,6 +111,12 @@ redirect-only mode. Het rapport toont statuscode, `Location`, target-bereikbaarh
 redirect-issues. Daarnaast wordt de alternate host (apex ↔ www) gecontroleerd: de
 niet-canonical host moet permanent doorverwijzen naar de canonical host uit de start-URL
 (of het redirect-doel). Er wordt niet gecrawld.
+
+### Stack
+
+Informatieve sectie met gedetecteerde hosting, framework, CMS, backend-services en
+tracking-scripts. Geaggregeerd uit crawl (`stack` + `tracking` groepen), response headers
+(`security-headers` check) en DNS (`dns` check). Zie [stack.md](./stack.md).
 
 ### Fix site-wide (all pages)
 

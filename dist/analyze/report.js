@@ -1,5 +1,6 @@
 import { z } from "zod";
-import { buildDnsSection, buildRedirectSection, buildRobotsAndSitemapSection, buildSecurityHeadersSection, buildTier1SummaryLines, } from "./reportTier1.js";
+import { buildDnsSection, buildRedirectSection, buildRobotsAndSitemapSection, buildSecurityHeadersSection, buildIssuesSummarySection, } from "./reportTier1.js";
+import { aggregateStackFromRecords, buildStackSection } from "./stack.js";
 const iconSchema = z.object({
     rel: z.string(),
     href: z.string(),
@@ -22,6 +23,14 @@ const crawlIssueSchema = z.object({
     id: z.string(),
     severity: z.enum(["critical", "error", "warning", "review"]),
     message: z.string(),
+});
+const stackDetectionSchema = z.object({
+    name: z.string(),
+    categories: z.array(z.string()),
+    confidence: z.enum(["high", "medium", "low"]),
+    evidence: z.array(z.string()),
+    website: z.string().optional(),
+    version: z.string().optional(),
 });
 const recordSchema = z.object({
     url: z.string(),
@@ -60,6 +69,11 @@ const recordSchema = z.object({
         tagManager: z.array(trackingItemSchema),
         analytics: z.array(trackingItemSchema),
     }),
+    stack: z
+        .object({
+        detections: z.array(stackDetectionSchema),
+    })
+        .optional(),
     security: z
         .object({
         secrets: z.array(secretFindingSchema),
@@ -472,6 +486,7 @@ function analyzeRecord(record) {
         warningKeys,
         tier1IssueKeys: collectTier1IssueKeys(record),
         imageIssues: record.images?.issues ?? [],
+        a11yStaticIssues: record.a11yStatic?.issues ?? [],
         mainLandmarkTodos,
         mainCount: record.mainCount,
         note: record.note,
@@ -549,31 +564,51 @@ function buildHowToUseSection(redirectOnly) {
     lines.push("");
     return lines;
 }
-function countTier1Issues(records) {
-    let imageIssuePages = 0;
-    let imageIssueCount = 0;
-    let a11yIssuePages = 0;
+const BEST_PRACTICE_WARNING_KEYS = new Set(["noindex", "nofollow", "missing-template", "main-missing", "main-multiple"]);
+function countCrawlIssueCategories(allItems, records) {
+    let seoIssueCount = 0;
+    let seoPageCount = 0;
     let a11yIssueCount = 0;
-    for (const record of records) {
-        const imageIssues = record.images?.issues.length ?? 0;
-        if (imageIssues > 0) {
-            imageIssuePages += 1;
-            imageIssueCount += imageIssues;
+    let a11yPageCount = 0;
+    let bestPracticesIssueCount = 0;
+    let bestPracticesPageCount = 0;
+    let securityIssueCount = 0;
+    let securityPageCount = 0;
+    for (const item of allItems) {
+        if (item.missingFields.length > 0) {
+            seoIssueCount += item.missingFields.length;
+            seoPageCount += 1;
         }
-        const a11yIssues = record.a11yStatic?.issues.length ?? 0;
-        if (a11yIssues > 0) {
-            a11yIssuePages += 1;
-            a11yIssueCount += a11yIssues;
+        const a11yOnPage = item.imageIssues.length + item.a11yStaticIssues.length;
+        if (a11yOnPage > 0) {
+            a11yIssueCount += a11yOnPage;
+            a11yPageCount += 1;
+        }
+        const bestPracticeKeys = item.warningKeys.filter((key) => BEST_PRACTICE_WARNING_KEYS.has(key));
+        if (bestPracticeKeys.length > 0) {
+            bestPracticesIssueCount += bestPracticeKeys.length;
+            bestPracticesPageCount += 1;
         }
     }
-    return { imageIssuePages, imageIssueCount, a11yIssuePages, a11yIssueCount };
+    for (const record of records) {
+        const secrets = record.security?.secrets.length ?? 0;
+        if (secrets > 0) {
+            securityIssueCount += secrets;
+            securityPageCount += 1;
+        }
+    }
+    return {
+        seo: { issueCount: seoIssueCount, pageCount: seoPageCount },
+        a11y: { issueCount: a11yIssueCount, pageCount: a11yPageCount },
+        bestPractices: { issueCount: bestPracticesIssueCount, pageCount: bestPracticesPageCount },
+        security: { issueCount: securityIssueCount, pageCount: securityPageCount },
+    };
 }
-export function buildMarkdown(inputPath, records, includeOnlyErrors, tier1 = {}, options = {}) {
+export async function buildReportAnalysis(records, tier1 = {}, options = {}) {
     const redirectOnly = options.redirectOnly ?? false;
     const allItems = records.map(analyzeRecord);
     const totalPages = allItems.length;
-    const now = new Date().toISOString();
-    const tier1Counts = countTier1Issues(records);
+    const crawlIssueCounts = countCrawlIssueCategories(allItems, records);
     const siteWideFields = new Set(fieldsMissingOnAllPages(allItems));
     const siteWideWarningKeys = new Set(warningKeysOnAllPages(allItems));
     const siteWideTier1Keys = new Set(tier1KeysOnAllPages(allItems));
@@ -591,28 +626,10 @@ export function buildMarkdown(inputPath, records, includeOnlyErrors, tier1 = {},
     const templateFieldMap = new Map();
     const templateWarningKeyMap = new Map();
     const templateTier1KeyMap = new Map();
-    const templateSections = [];
-    if (templateGroups.size > 0) {
-        templateSections.push("## Fix in templates", "");
-        templateSections.push("These issues appear on every page using the same template. Fix each template file once.", "");
-        const sortedGroups = [...templateGroups.entries()].sort((a, b) => b[1].length - a[1].length);
-        for (const [template, items] of sortedGroups) {
-            const templateFields = fieldsMissingOnAllPages(items).filter((field) => !siteWideFields.has(field));
-            const templateWarningKeys = warningKeysOnAllPages(items).filter((key) => !siteWideWarningKeys.has(key));
-            const templateTier1Keys = tier1KeysOnAllPages(items).filter((key) => !siteWideTier1Keys.has(key));
-            templateFieldMap.set(template, new Set(templateFields));
-            templateWarningKeyMap.set(template, new Set(templateWarningKeys));
-            templateTier1KeyMap.set(template, new Set(templateTier1Keys));
-            const templateFixTodos = buildScopedFixTodos(items, "template", siteWideFields, siteWideWarningKeys, siteWideTier1Keys);
-            templateSections.push(`### Template: \`${template}\` (${items.length} page(s))`, "");
-            if (templateFixTodos.length === 0) {
-                templateSections.push("- No template-specific issues (remaining issues are site-wide or page-specific).");
-            }
-            else {
-                templateSections.push(...templateFixTodos);
-            }
-            templateSections.push("");
-        }
+    for (const [template, items] of templateGroups) {
+        templateFieldMap.set(template, new Set(fieldsMissingOnAllPages(items).filter((field) => !siteWideFields.has(field))));
+        templateWarningKeyMap.set(template, new Set(warningKeysOnAllPages(items).filter((key) => !siteWideWarningKeys.has(key))));
+        templateTier1KeyMap.set(template, new Set(tier1KeysOnAllPages(items).filter((key) => !siteWideTier1Keys.has(key))));
     }
     const coveredFieldsByTemplate = new Map();
     const coveredWarningKeysByTemplate = new Map();
@@ -626,14 +643,73 @@ export function buildMarkdown(inputPath, records, includeOnlyErrors, tier1 = {},
     for (const [template, keys] of templateTier1KeyMap) {
         coveredTier1KeysByTemplate.set(template, new Set([...siteWideTier1Keys, ...keys]));
     }
-    const pageSections = [];
-    let pageSpecificCount = 0;
+    const pageFixes = [];
     for (const item of allItems) {
         const coveredFields = coveredFieldsByTemplate.get(item.template) ?? siteWideFields;
         const coveredWarningKeys = coveredWarningKeysByTemplate.get(item.template) ?? siteWideWarningKeys;
         const coveredTier1Keys = coveredTier1KeysByTemplate.get(item.template) ?? siteWideTier1Keys;
         const remainingTodos = buildRemainingPageTodos(item, coveredFields, coveredWarningKeys, coveredTier1Keys);
         const hasSecrets = records.some((record) => record.url === item.url && (record.security?.secrets.length ?? 0) > 0);
+        if (remainingTodos.length === 0 && !hasSecrets)
+            continue;
+        pageFixes.push({ item, remainingTodos });
+    }
+    const securityPages = records
+        .map((record) => ({ url: record.url, secrets: record.security?.secrets ?? [] }))
+        .filter((entry) => entry.secrets.length > 0);
+    const stackProfile = options.stackProfile ??
+        (redirectOnly
+            ? { detections: [], tracking: { tagManager: [], analytics: [] } }
+            : aggregateStackFromRecords(records));
+    return {
+        allItems,
+        totalPages,
+        redirectOnly,
+        siteWideFields,
+        siteWideWarningKeys,
+        siteWideTier1Keys,
+        siteWideFixTodos,
+        templateGroups,
+        templateFieldMap,
+        templateWarningKeyMap,
+        templateTier1KeyMap,
+        coveredFieldsByTemplate,
+        coveredWarningKeysByTemplate,
+        coveredTier1KeysByTemplate,
+        pageFixes,
+        securityPages,
+        stackProfile,
+        crawlIssueCounts,
+    };
+}
+export async function buildMarkdown(inputPath, records, includeOnlyErrors, tier1 = {}, options = {}) {
+    const analysis = await buildReportAnalysis(records, tier1, options);
+    const { allItems, totalPages, redirectOnly, siteWideFields, siteWideWarningKeys, siteWideTier1Keys, siteWideFixTodos, templateGroups, templateFieldMap, templateWarningKeyMap, templateTier1KeyMap, pageFixes, securityPages, stackProfile, crawlIssueCounts, } = analysis;
+    const now = new Date().toISOString();
+    const templateSections = [];
+    if (templateGroups.size > 0) {
+        templateSections.push("## Fix in templates", "");
+        templateSections.push("These issues appear on every page using the same template. Fix each template file once.", "");
+        const sortedGroups = [...templateGroups.entries()].sort((a, b) => b[1].length - a[1].length);
+        for (const [template, items] of sortedGroups) {
+            const templateFields = [...(templateFieldMap.get(template) ?? [])];
+            const templateWarningKeys = [...(templateWarningKeyMap.get(template) ?? [])];
+            const templateTier1Keys = [...(templateTier1KeyMap.get(template) ?? [])];
+            const templateFixTodos = buildScopedFixTodos(items, "template", siteWideFields, siteWideWarningKeys, siteWideTier1Keys);
+            templateSections.push(`### Template: \`${template}\` (${items.length} page(s))`, "");
+            if (templateFixTodos.length === 0) {
+                templateSections.push("- No template-specific issues (remaining issues are site-wide or page-specific).");
+            }
+            else {
+                templateSections.push(...templateFixTodos);
+            }
+            templateSections.push("");
+        }
+    }
+    const pageSections = [];
+    let pageSpecificCount = 0;
+    for (const { item, remainingTodos } of pageFixes) {
+        const hasSecrets = securityPages.some((page) => page.url === item.url);
         if (includeOnlyErrors && remainingTodos.length === 0 && !hasSecrets) {
             continue;
         }
@@ -657,9 +733,6 @@ export function buildMarkdown(inputPath, records, includeOnlyErrors, tier1 = {},
         }
         pageSections.push("");
     }
-    const securityPages = records
-        .map((record) => ({ url: record.url, secrets: record.security?.secrets ?? [] }))
-        .filter((entry) => entry.secrets.length > 0);
     const securityLines = [];
     if (securityPages.length > 0) {
         const anyMasked = securityPages.some((page) => page.secrets.some((secret) => secret.masked.includes("…")));
@@ -685,13 +758,20 @@ export function buildMarkdown(inputPath, records, includeOnlyErrors, tier1 = {},
     if (tier1.dns)
         infraLines.push(...buildDnsSection(tier1.dns));
     if (!redirectOnly) {
+        const stackLines = buildStackSection(stackProfile, totalPages);
+        if (stackLines.length > 0)
+            infraLines.push(...stackLines);
         if (tier1.securityHeaders)
             infraLines.push(...buildSecurityHeadersSection(tier1.securityHeaders));
         if (tier1.robotsTxt || tier1.sitemap) {
             infraLines.push(...buildRobotsAndSitemapSection(tier1.robotsTxt, tier1.sitemap));
         }
     }
-    const tier1SummaryLines = buildTier1SummaryLines(tier1, tier1Counts.imageIssuePages, tier1Counts.imageIssueCount, tier1Counts.a11yIssuePages, tier1Counts.a11yIssueCount, redirectOnly);
+    const templatesWithFixes = [...templateGroups.entries()]
+        .filter(([, items]) => buildScopedFixTodos(items, "template", siteWideFields, siteWideWarningKeys, siteWideTier1Keys).length > 0)
+        .map(([template]) => template)
+        .sort();
+    const issuesSummarySection = buildIssuesSummarySection(tier1, crawlIssueCounts, redirectOnly);
     const pagesWithIssues = allItems.filter((item) => item.missingFields.length > 0 ||
         item.warningKeys.length > 0 ||
         item.tier1IssueKeys.length > 0 ||
@@ -713,10 +793,10 @@ export function buildMarkdown(inputPath, records, includeOnlyErrors, tier1 = {},
         `- Pages analyzed: ${totalPages}`,
         `- Pages with issues: ${pagesWithIssues}`,
         `- Site-wide fixes: ${siteWideFixTodos.length}`,
-        `- Templates with fixes: ${[...templateGroups.entries()].filter(([, items]) => buildScopedFixTodos(items, "template", siteWideFields, siteWideWarningKeys, siteWideTier1Keys).length > 0).length}`,
+        `- Templates that need fixes: ${templatesWithFixes.length > 0 ? templatesWithFixes.map((template) => `\`${template}\``).join(", ") : "none"}`,
         `- Pages with page-specific fixes: ${pageSpecificCount}`,
-        ...tier1SummaryLines,
         "",
+        ...issuesSummarySection,
         ...buildHowToUseSection(redirectOnly),
         ...coverageSection,
         "",

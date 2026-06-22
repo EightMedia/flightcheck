@@ -13,6 +13,15 @@ export type TrackingItem = {
   id: string;
 };
 
+export type StackDetection = {
+  name: string;
+  categories: string[];
+  confidence: "high" | "medium" | "low";
+  evidence: string[];
+  website?: string;
+  version?: string;
+};
+
 export type CrawlIssueSeverity = "critical" | "error" | "warning" | "review";
 
 export type CrawlIssue = {
@@ -63,6 +72,9 @@ export type VerificationRecord = {
   tracking: {
     tagManager: TrackingItem[];
     analytics: TrackingItem[];
+  };
+  stack?: {
+    detections: StackDetection[];
   };
   security: {
     secrets: SecretFinding[];

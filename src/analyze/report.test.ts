@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildMarkdown, type ReportRecord } from "./report.js";
+import { buildStackProfile } from "./stack.js";
 
 function makeRecord(overrides: Partial<ReportRecord> = {}): ReportRecord {
   return {
@@ -41,20 +42,20 @@ function makeRecord(overrides: Partial<ReportRecord> = {}): ReportRecord {
 }
 
 describe("buildMarkdown robots warnings", () => {
-  it("does not flag missing robots meta as a missing field", () => {
-    const markdown = buildMarkdown("report.json", [makeRecord()], false);
+  it("does not flag missing robots meta as a missing field", async () => {
+    const markdown = await buildMarkdown("report.json", [makeRecord()], false);
     expect(markdown).not.toContain("robots: missing");
     expect(markdown).not.toContain("Fix missing attribute:");
   });
 
-  it("puts noindex on a single-page crawl in site-wide fixes", () => {
-    const markdown = buildMarkdown("report.json", [makeRecord({ robots: "noindex" })], false);
+  it("puts noindex on a single-page crawl in site-wide fixes", async () => {
+    const markdown = await buildMarkdown("report.json", [makeRecord({ robots: "noindex" })], false);
     expect(markdown).toContain("## Fix site-wide (all pages)");
     expect(markdown).toContain("- [ ] Remove noindex from shared robots meta tag in site layout");
   });
 
-  it("puts noindex on one of two pages in per-page fixes only", () => {
-    const markdown = buildMarkdown(
+  it("puts noindex on one of two pages in per-page fixes only", async () => {
+    const markdown = await buildMarkdown(
       "report.json",
       [makeRecord({ robots: "noindex", url: "https://example.com/a" }), makeRecord({ url: "https://example.com/b" })],
       false
@@ -63,16 +64,16 @@ describe("buildMarkdown robots warnings", () => {
     expect(markdown).not.toContain("Remove noindex from shared robots meta tag");
   });
 
-  it("does not warn when robots is set to index,follow", () => {
-    const markdown = buildMarkdown("report.json", [makeRecord({ robots: "index,follow" })], false);
+  it("does not warn when robots is set to index,follow", async () => {
+    const markdown = await buildMarkdown("report.json", [makeRecord({ robots: "index,follow" })], false);
     expect(markdown).not.toContain("noindex");
     expect(markdown).not.toContain("nofollow");
   });
 });
 
 describe("buildMarkdown template meta warnings", () => {
-  it("warns site-wide when template meta is missing on all pages", () => {
-    const markdown = buildMarkdown(
+  it("warns site-wide when template meta is missing on all pages", async () => {
+    const markdown = await buildMarkdown(
       "report.json",
       [makeRecord({ template: "", url: "https://example.com/a" }), makeRecord({ template: "", url: "https://example.com/b" })],
       false
@@ -85,8 +86,8 @@ describe("buildMarkdown template meta warnings", () => {
     expect(markdown).not.toContain("Add template meta tag to page head");
   });
 
-  it("warns per page when template meta is missing on only some pages", () => {
-    const markdown = buildMarkdown(
+  it("warns per page when template meta is missing on only some pages", async () => {
+    const markdown = await buildMarkdown(
       "report.json",
       [makeRecord({ template: "", url: "https://example.com/a" }), makeRecord({ template: "work", url: "https://example.com/b" })],
       false
@@ -97,22 +98,22 @@ describe("buildMarkdown template meta warnings", () => {
     expect(markdown).not.toContain("Add template meta tag to site layout head");
   });
 
-  it("does not warn when template meta is present", () => {
-    const markdown = buildMarkdown("report.json", [makeRecord({ template: "work" })], false);
+  it("does not warn when template meta is present", async () => {
+    const markdown = await buildMarkdown("report.json", [makeRecord({ template: "work" })], false);
     expect(markdown).not.toContain("missing template meta");
     expect(markdown).not.toContain("Add template meta tag");
   });
 });
 
 describe("buildMarkdown site-wide todos", () => {
-  it("lists shared issues once under site-wide fixes", () => {
+  it("lists shared issues once under site-wide fixes", async () => {
     const shared = {
       colorScheme: "",
       og: { title: "t", description: "d", image: "i", url: "", type: "website", siteName: "" },
       twitter: { card: "", title: "", description: "", image: "" },
     };
 
-    const markdown = buildMarkdown(
+    const markdown = await buildMarkdown(
       "report.json",
       [makeRecord({ ...shared, url: "https://example.com/a" }), makeRecord({ ...shared, url: "https://example.com/b" })],
       false
@@ -125,14 +126,14 @@ describe("buildMarkdown site-wide todos", () => {
     expect(markdown).not.toContain("Add color-scheme meta tag to page head");
   });
 
-  it("deduplicates site-wide issues from per-page section", () => {
+  it("deduplicates site-wide issues from per-page section", async () => {
     const shared = {
       colorScheme: "",
       og: { title: "t", description: "d", image: "i", url: "", type: "website", siteName: "" },
       twitter: { card: "", title: "", description: "", image: "" },
     };
 
-    const markdown = buildMarkdown(
+    const markdown = await buildMarkdown(
       "report.json",
       [
         makeRecord({ ...shared, h1: "", url: "https://example.com/" }),
@@ -149,8 +150,8 @@ describe("buildMarkdown site-wide todos", () => {
 });
 
 describe("buildMarkdown page-level todos", () => {
-  it("splits missing fields into separate todos and bundles og/twitter", () => {
-    const markdown = buildMarkdown(
+  it("splits missing fields into separate todos and bundles og/twitter", async () => {
+    const markdown = await buildMarkdown(
       "report.json",
       [
         makeRecord({
@@ -169,20 +170,20 @@ describe("buildMarkdown page-level todos", () => {
     expect(markdown).toContain("- [ ] Add Twitter meta tags to site layout head: twitter:card, twitter:title, twitter:description, twitter:image");
   });
 
-  it("flags missing main landmark on a single page", () => {
-    const markdown = buildMarkdown("report.json", [makeRecord({ mainCount: 0 })], false);
+  it("flags missing main landmark on a single page", async () => {
+    const markdown = await buildMarkdown("report.json", [makeRecord({ mainCount: 0 })], false);
     expect(markdown).toContain("- [ ] Add main landmark to site layout");
     expect(markdown).toContain("- `missing main landmark`: 1/1 pages (site-wide)");
   });
 
-  it("flags multiple main landmarks with count on a single page", () => {
-    const markdown = buildMarkdown("report.json", [makeRecord({ mainCount: 2 })], false);
+  it("flags multiple main landmarks with count on a single page", async () => {
+    const markdown = await buildMarkdown("report.json", [makeRecord({ mainCount: 2 })], false);
     expect(markdown).toContain("- [ ] Ensure site layout renders exactly one main landmark");
   });
 });
 
 describe("buildMarkdown template todos", () => {
-  it("shows bundled template fix todos when all pages in a template share issues", () => {
+  it("shows bundled template fix todos when all pages in a template share issues", async () => {
     const sharedIssues = {
       template: "work",
       colorScheme: "",
@@ -191,7 +192,7 @@ describe("buildMarkdown template todos", () => {
       mainCount: 0,
     };
 
-    const markdown = buildMarkdown(
+    const markdown = await buildMarkdown(
       "report.json",
       [
         makeRecord({ ...sharedIssues, url: "https://example.com/work/a" }),
@@ -208,8 +209,8 @@ describe("buildMarkdown template todos", () => {
     expect(markdown).not.toContain("- [ ] Add color-scheme meta tag to site layout head");
   });
 
-  it("omits template todos when an issue is not shared by all pages in the template", () => {
-    const markdown = buildMarkdown(
+  it("omits template todos when an issue is not shared by all pages in the template", async () => {
+    const markdown = await buildMarkdown(
       "report.json",
       [
         makeRecord({ template: "work", colorScheme: "", url: "https://example.com/work/a" }),
@@ -223,8 +224,8 @@ describe("buildMarkdown template todos", () => {
     expect(markdown).not.toContain("Add color-scheme meta tag to template head");
   });
 
-  it("skips template section when no template names are found", () => {
-    const markdown = buildMarkdown(
+  it("skips template section when no template names are found", async () => {
+    const markdown = await buildMarkdown(
       "report.json",
       [makeRecord({ colorScheme: "" }), makeRecord({ colorScheme: "", url: "https://example.com/two" })],
       false
@@ -234,8 +235,8 @@ describe("buildMarkdown template todos", () => {
     expect(markdown).toContain("## Fix site-wide (all pages)");
   });
 
-  it("includes issue coverage with scope labels", () => {
-    const markdown = buildMarkdown(
+  it("includes issue coverage with scope labels", async () => {
+    const markdown = await buildMarkdown(
       "report.json",
       [
         makeRecord({ colorScheme: "", url: "https://example.com/a" }),
@@ -249,8 +250,8 @@ describe("buildMarkdown template todos", () => {
     expect(markdown).toContain("- `h1`: 1/2 pages (page-specific)");
   });
 
-  it("places how-to and issue coverage before fix sections", () => {
-    const markdown = buildMarkdown(
+  it("places how-to and issue coverage before fix sections", async () => {
+    const markdown = await buildMarkdown(
       "report.json",
       [makeRecord({ colorScheme: "" }), makeRecord({ colorScheme: "", url: "https://example.com/two" })],
       false
@@ -267,8 +268,8 @@ describe("buildMarkdown template todos", () => {
 });
 
 describe("buildMarkdown tier 1 infra sections", () => {
-  it("renders DNS, security headers, and robots.txt sections", () => {
-    const markdown = buildMarkdown(
+  it("renders DNS, security headers, and robots.txt sections", async () => {
+    const markdown = await buildMarkdown(
       "report.json",
       [makeRecord()],
       false,
@@ -301,11 +302,45 @@ describe("buildMarkdown tier 1 infra sections", () => {
     expect(markdown).toContain("## Robots.txt & sitemap");
     expect(markdown).toContain("### Robots.txt");
     expect(markdown).toContain("- Sitemaps: `https://example.com/sitemap.xml`");
-    expect(markdown).toContain("- Tier 1 infra: DNS (1 issue(s)), security headers (1 issue(s)), robots.txt (0 issue(s))");
+    expect(markdown).toContain("- **Infra:** 2 issue(s) — DNS (1 issue(s)), security headers (1 issue(s)), robots.txt (0 issue(s))");
   });
 
-  it("renders sitemap comparison details", () => {
-    const markdown = buildMarkdown(
+  it("renders stack section from crawl, headers, and tracking data", async () => {
+    const records = [
+      makeRecord({
+        tracking: {
+          tagManager: [{ provider: "google-tag-manager", id: "GTM-TEST" }],
+          analytics: [],
+        },
+        stack: {
+          detections: [
+            {
+              name: "Next.js",
+              categories: ["JavaScript frameworks"],
+              confidence: "high",
+              evidence: ["Next.js runtime markers in HTML"],
+            },
+          ],
+        },
+      }),
+    ];
+    const stackProfile = await buildStackProfile(records, {
+      securityHeaders: {
+        url: "https://example.com",
+        headers: { "x-vercel-id": "iad1::abc" },
+        issues: [],
+      },
+    });
+    const markdown = await buildMarkdown("report.json", records, false, {}, { stackProfile });
+
+    expect(markdown).toContain("## Stack");
+    expect(markdown).toContain("**Next.js**");
+    expect(markdown).toContain("### Tracking (flightcheck crawl)");
+    expect(markdown).toContain("Google Tag Manager: `GTM-TEST`");
+  });
+
+  it("renders sitemap comparison details", async () => {
+    const markdown = await buildMarkdown(
       "report.json",
       [makeRecord()],
       false,
@@ -334,11 +369,11 @@ describe("buildMarkdown tier 1 infra sections", () => {
     expect(markdown).toContain("#### In sitemap but not crawled (CRITICAL)");
     expect(markdown).toContain("`https://example.com/about`");
     expect(markdown).toContain("**CRITICAL** 1 sitemap URL(s) were not crawled.");
-    expect(markdown).toContain("- Tier 1 infra: sitemap (1 issue(s))");
+    expect(markdown).toContain("- **Infra:** 1 issue(s) — sitemap (1 issue(s))");
   });
 
-  it("renders redirect-only mode without crawl sections", () => {
-    const markdown = buildMarkdown(
+  it("renders redirect-only mode without crawl sections", async () => {
+    const markdown = await buildMarkdown(
       "redirect-only.json",
       [],
       false,
@@ -359,7 +394,8 @@ describe("buildMarkdown tier 1 infra sections", () => {
     );
 
     expect(markdown).toContain("## Domain redirect");
-    expect(markdown).toContain("Mode: redirect-only");
+    expect(markdown).toContain("### Issues summary");
+    expect(markdown).toContain("redirect-only mode");
     expect(markdown).toContain("No crawl performed because the start URL is a domain redirect.");
     expect(markdown).not.toContain("## Security headers");
     expect(markdown).not.toContain("## Robots.txt & sitemap");
@@ -367,8 +403,8 @@ describe("buildMarkdown tier 1 infra sections", () => {
 });
 
 describe("buildMarkdown tier 1 crawl issues", () => {
-  it("puts page-specific image alt issues on per-page fixes with filenames", () => {
-    const markdown = buildMarkdown(
+  it("puts page-specific image alt issues on per-page fixes with filenames", async () => {
+    const markdown = await buildMarkdown(
       "report.json",
       [
         makeRecord({
@@ -393,8 +429,8 @@ describe("buildMarkdown tier 1 crawl issues", () => {
     expect(markdown).toContain("- `missing image alt`: 1/2 pages (page-specific)");
   });
 
-  it("puts shared image alt issues in site-wide fixes", () => {
-    const markdown = buildMarkdown(
+  it("puts shared image alt issues in site-wide fixes", async () => {
+    const markdown = await buildMarkdown(
       "report.json",
       [
         makeRecord({
@@ -410,12 +446,12 @@ describe("buildMarkdown tier 1 crawl issues", () => {
     );
 
     expect(markdown).toContain("- [ ] Add alt text to images in shared components");
-    expect(markdown).toContain("- Image alt issues: 2 on 2 page(s)");
+    expect(markdown).toContain("- **A11y:** 2 issue(s) on 2 page(s)");
     expect(markdown).toContain("- `missing image alt`: 2/2 pages (site-wide)");
   });
 
-  it("puts page-specific a11y issues in per-page fixes", () => {
-    const markdown = buildMarkdown(
+  it("puts page-specific a11y issues in per-page fixes", async () => {
+    const markdown = await buildMarkdown(
       "report.json",
       [
         makeRecord({
@@ -429,7 +465,7 @@ describe("buildMarkdown tier 1 crawl issues", () => {
 
     expect(markdown).toContain("### https://example.com/a");
     expect(markdown).toContain("- [ ] Remove positive tabindex values on page");
-    expect(markdown).toContain("- Static a11y issues: 1 on 1 page(s)");
+    expect(markdown).toContain("- **A11y:** 1 issue(s) on 1 page(s)");
     expect(markdown).toContain("- `positive tabindex`: 1/2 pages (page-specific)");
   });
 });

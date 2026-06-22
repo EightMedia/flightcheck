@@ -536,7 +536,7 @@ type FlightcheckReport = {
 
 Report sections (top to bottom):
 
-1. Summary (counts per check + tier)
+1. Summary (pages analyzed, fix scopes, **Issues summary** by category: infra, SEO, a11y, best practices, performance)
 2. Security (secrets — existing)
 3. DNS (infra overview)
 4. Security headers

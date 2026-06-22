@@ -31,6 +31,17 @@ pnpm run analyze -- ./flightcheck/20260618.1413-eight.nl-raw.json
 - `docs/checks.md` — modular check API and extension guide
 - `docs/crawler.md`
 - `docs/analyze.md`
+- `docs/stack.md`
+
+## License
+
+Flightcheck is licensed under [GNU GPL v3.0](LICENSE). You may use, modify, and
+distribute it under the GPL terms. Derivative works must also be open source under a
+compatible license — it cannot be incorporated into closed-source products without
+complying with the GPL (typically by open-sourcing the combined work).
+
+Technology fingerprints in `data/webappanalyzer/` are derived from
+[enthec/webappanalyzer](https://github.com/enthec/webappanalyzer).
 
 ## Programmatic API
 

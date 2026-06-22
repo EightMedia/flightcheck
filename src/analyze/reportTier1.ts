@@ -15,6 +15,7 @@ export type Tier1ReportData = {
 
 export type BuildMarkdownOptions = {
   redirectOnly?: boolean;
+  stackProfile?: import("./stack.js").StackProfile;
 };
 
 function severityLabel(severity: string): string {
@@ -199,19 +200,17 @@ export function countTier1InfraIssues(tier1: Tier1ReportData): number {
   );
 }
 
-export function buildTier1SummaryLines(
-  tier1: Tier1ReportData,
-  imageIssuePages: number,
-  imageIssueCount: number,
-  a11yIssuePages: number,
-  a11yIssueCount: number,
-  redirectOnly = false
-): string[] {
-  const lines: string[] = [];
-  const parts: string[] = [];
+export type CrawlIssueCounts = {
+  seo: { issueCount: number; pageCount: number };
+  a11y: { issueCount: number; pageCount: number };
+  bestPractices: { issueCount: number; pageCount: number };
+  security: { issueCount: number; pageCount: number };
+};
 
+function buildInfraSummaryParts(tier1: Tier1ReportData, redirectOnly: boolean): string[] {
+  const parts: string[] = [];
   if (redirectOnly) {
-    lines.push("- Mode: redirect-only (start URL returns a redirect; crawl and sitemap checks were skipped)");
+    parts.push("redirect-only mode");
   }
   if (tier1.redirect) {
     parts.push(`redirect (${tier1.redirect.issues.length} issue(s))`);
@@ -228,14 +227,45 @@ export function buildTier1SummaryLines(
   if (tier1.sitemap) {
     parts.push(`sitemap (${tier1.sitemap.issues.length} issue(s))`);
   }
-  if (parts.length > 0) {
-    lines.push(`- Tier 1 infra: ${parts.join(", ")}`);
+  return parts;
+}
+
+export function buildIssuesSummarySection(
+  tier1: Tier1ReportData,
+  crawlCounts: CrawlIssueCounts,
+  redirectOnly: boolean,
+  performanceChecked = false,
+  performanceIssueCount = 0,
+  performancePageCount = 0
+): string[] {
+  const lines: string[] = ["### Issues summary", ""];
+  const infraParts = buildInfraSummaryParts(tier1, redirectOnly);
+  const infraIssueCount = countTier1InfraIssues(tier1);
+
+  if (infraParts.length > 0) {
+    lines.push(`- **Infra:** ${infraIssueCount} issue(s) — ${infraParts.join(", ")}`);
   }
-  if (imageIssueCount > 0) {
-    lines.push(`- Image alt issues: ${imageIssueCount} on ${imageIssuePages} page(s)`);
+
+  if (!redirectOnly) {
+    lines.push(
+      `- **SEO:** ${crawlCounts.seo.issueCount} issue(s) on ${crawlCounts.seo.pageCount} page(s)`,
+      `- **A11y:** ${crawlCounts.a11y.issueCount} issue(s) on ${crawlCounts.a11y.pageCount} page(s) — image alt + static hints`,
+      `- **Best practices:** ${crawlCounts.bestPractices.issueCount} issue(s) on ${crawlCounts.bestPractices.pageCount} page(s) — landmarks, robots, template meta`
+    );
+    if (crawlCounts.security.issueCount > 0) {
+      lines.push(
+        `- **Security:** ${crawlCounts.security.issueCount} finding(s) on ${crawlCounts.security.pageCount} page(s)`
+      );
+    }
+    if (performanceChecked) {
+      lines.push(`- **Performance:** ${performanceIssueCount} issue(s) on ${performancePageCount} page(s)`);
+    } else {
+      lines.push("- **Performance:** not checked");
+    }
+  } else if (infraParts.length === 0) {
+    lines.push("- No issues found.");
   }
-  if (a11yIssueCount > 0) {
-    lines.push(`- Static a11y issues: ${a11yIssueCount} on ${a11yIssuePages} page(s)`);
-  }
+
+  lines.push("");
   return lines;
 }
