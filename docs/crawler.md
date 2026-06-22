@@ -4,7 +4,7 @@ Deze crawler verzamelt per URL verificatie-data voor SEO, metadata, tracking en 
 
 ## Doel
 
-- Crawlen vanaf een start-URL of sitemap-seeds.
+- Crawlen vanaf een start-URL; sitemap-URL's worden standaard als extra seeds toegevoegd zodat alle pagina's uit de sitemap worden bezocht.
 - Schrijven van incrementele JSON output na elke verwerkte URL.
 - Deduplicatie op URL zonder query/hash.
 - Excludes op URL en pathname.
@@ -36,7 +36,7 @@ Belangrijkste flags:
 - `--timeout-ms <n>`
 - `--concurrency <n>`
 - `--burst-delay-ms <n>`
-- `--sitemap-start`
+- `--sitemap-start` (legacy) beperkt de initiële seeds tot sitemap-URL's plus de start-URL; standaard worden sitemap-URL's al aan de crawl-queue toegevoegd
 - `--sitemap-url <url>`
 - `--exclude <pattern1,pattern2>` (herhaalbaar)
 - `--respect-robots-txt`
@@ -134,6 +134,7 @@ Daarnaast:
 ## Gedrag
 
 - Alleen interne links worden gecrawld. Links worden zelf ontdekt via `extractInternalLinks` en toegevoegd aan de queue; er wordt bewust geen `enqueueLinks` van Crawlee gebruikt.
+- Sitemap-URL's worden standaard aan de crawl-queue toegevoegd zodat pagina's uit `sitemap.xml` ook worden bezocht, ook wanneer ze niet via interne links bereikbaar zijn.
 - `--max-pages` is de harde stop (`maxRequestsPerCrawl`). De crawl stopt zodra dit aantal is verwerkt, ook al zijn er nog niet-bezochte links. Verhoog `--max-pages` om de hele site te crawlen.
 - Query parameters en hashes tellen niet mee voor URL-identiteit.
 - Non-HTML responses worden gerapporteerd met `note`.

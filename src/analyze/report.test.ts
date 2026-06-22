@@ -214,6 +214,22 @@ describe("buildMarkdown template todos", () => {
     expect(markdown).toContain("- `colorScheme`: 2/2 pages (site-wide)");
     expect(markdown).toContain("- `h1`: 1/2 pages (page-specific)");
   });
+
+  it("places how-to and issue coverage before fix sections", () => {
+    const markdown = buildMarkdown(
+      "report.json",
+      [makeRecord({ colorScheme: "" }), makeRecord({ colorScheme: "", url: "https://example.com/two" })],
+      false
+    );
+
+    const howToIndex = markdown.indexOf("## How to use this report");
+    const coverageIndex = markdown.indexOf("## Issue coverage");
+    const siteWideIndex = markdown.indexOf("## Fix site-wide (all pages)");
+
+    expect(howToIndex).toBeGreaterThan(-1);
+    expect(coverageIndex).toBeGreaterThan(howToIndex);
+    expect(siteWideIndex).toBeGreaterThan(coverageIndex);
+  });
 });
 
 describe("buildMarkdown tier 1 infra sections", () => {
@@ -267,16 +283,23 @@ describe("buildMarkdown tier 1 infra sections", () => {
           inSitemapNotCrawled: ["https://example.com/about"],
           crawledNotInSitemap: [],
           mismatchPercent: 50,
-          issues: [{ id: "sitemap-url-not-crawled", severity: "warning", message: "1 sitemap URL(s) were not crawled." }],
+          issues: [
+            {
+              id: "sitemap-url-not-crawled",
+              severity: "critical",
+              message:
+                "1 sitemap URL(s) were not crawled. Probable cause: sitemap URLs must match crawled URLs exactly, including hostname (apex vs www). These URLs were not crawled — check page limits, robots blocks, stale sitemap entries, or a failing sitemap regeneration job (cron).",
+            },
+          ],
         },
       }
     );
 
     expect(markdown).toContain("## Robots.txt & sitemap");
     expect(markdown).toContain("### Sitemap");
-    expect(markdown).toContain("#### In sitemap but not crawled");
+    expect(markdown).toContain("#### In sitemap but not crawled (CRITICAL)");
     expect(markdown).toContain("`https://example.com/about`");
-    expect(markdown).toContain("**WARNING** 1 sitemap URL(s) were not crawled.");
+    expect(markdown).toContain("**CRITICAL** 1 sitemap URL(s) were not crawled.");
     expect(markdown).toContain("- Tier 1 infra: sitemap (1 issue(s))");
   });
 

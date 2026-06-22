@@ -37,6 +37,23 @@ Korte telling: hoeveel site-wide fixes, template-fixes en page-specific fixes er
 checks zijn meegedraaid, bevat de summary ook infra-tellingen (DNS, security headers, robots.txt)
 en crawl-gebaseerde image/a11y issues.
 
+### How to use this report
+
+Stappenplan om iteratief te verbeteren. Staat direct onder de summary zodat je de fix-volgorde
+kent voordat je de todo-secties doorloopt.
+
+### Issue coverage
+
+Referentietabel: hoe vaak elk issue voorkomt en of het site-wide, template-scoped of
+page-specific is. Staat bovenaan als overzicht voordat je aan de fixes begint.
+
+Voorbeeld:
+
+```markdown
+- `colorScheme`: 20/20 pages (site-wide)
+- `h1`: 1/20 pages (page-specific)
+```
+
 ### 🔑 Security
 
 Secrets/API-keys per URL (severity `critical` eerst). Bij gemaskeerde waarden staat een hint
@@ -54,6 +71,10 @@ Resultaat van de `security-headers` check: ontbrekende HSTS, CSP, clickjacking-b
 ### Robots.txt & sitemap
 
 Resultaat van de `robots-txt` en `sitemap` checks (overgeslagen in redirect-only mode).
+
+Sitemap-vergelijking vereist een exacte match tussen sitemap- en crawl-URL's, inclusief hostname
+(apex vs www). Elke afwijking krijgt severity `critical`, met tips over de waarschijnlijke oorzaak
+(bijvoorbeeld verkeerde hostname in de sitemap of een falende sitemap-build/cron job).
 
 ### Domain redirect
 
@@ -95,22 +116,6 @@ Voorbeeld:
 Resterende issues per URL — meestal page-specific content. Site-wide en template-fixes worden
 hier niet herhaald. Bevat ook Tier 1 crawl-issues zoals ontbrekende image alt-teksten en
 statische a11y-hints wanneer de `images` of `a11y-static` crawl groups actief zijn.
-
-### Issue coverage
-
-Referentietabel: hoe vaak elk issue voorkomt en of het site-wide, template-scoped of
-page-specific is.
-
-Voorbeeld:
-
-```markdown
-- `colorScheme`: 20/20 pages (site-wide)
-- `h1`: 1/20 pages (page-specific)
-```
-
-### How to use this report
-
-Stappenplan om iteratief te verbeteren.
 
 ## Checks
 

@@ -3,3 +3,5 @@ storage/*
 report.json
 flightcheck/*
 !flightcheck/.gitkeep
+output/*
+!output/.gitkeep

@@ -516,6 +516,22 @@ function buildCoverageSection(allItems, totalPages, siteWideFields, siteWideWarn
     }
     return lines;
 }
+function buildHowToUseSection(redirectOnly) {
+    const lines = ["## How to use this report", ""];
+    if (redirectOnly) {
+        lines.push("1. Fix redirect issues listed below (status code, Location target, HTTPS/HSTS).");
+        lines.push("2. Re-run flightcheck to confirm the redirect is healthy.");
+        lines.push("3. Run against the final destination URL if you need a full site crawl.");
+    }
+    else {
+        lines.push("1. Fix **site-wide** items once in shared layout/head.");
+        lines.push("2. Fix **template** items in each template file.");
+        lines.push("3. Fix **per-page** items in page content or route-specific files.");
+        lines.push("4. Re-run flightcheck and confirm issue counts drop to zero.");
+    }
+    lines.push("");
+    return lines;
+}
 function countTier1Issues(records) {
     let imageIssuePages = 0;
     let imageIssueCount = 0;
@@ -665,7 +681,8 @@ export function buildMarkdown(inputPath, records, includeOnlyErrors, tier1 = {},
         records.some((record) => record.url === item.url && (record.security?.secrets.length ?? 0) > 0)).length;
     const summaryIntro = redirectOnly
         ? "This host responds with a redirect at the start URL. Flightcheck validated the redirect setup and skipped crawling."
-        : "Work through this report top to bottom. Fix site-wide items once in shared layout, then templates, then individual pages.";
+        : "Actionable todos from the flightcheck crawl, grouped by fix scope.";
+    const coverageSection = buildCoverageSection(allItems, totalPages, siteWideFields, siteWideWarningKeys, siteWideTier1Keys, templateFieldMap, templateWarningKeyMap, templateTier1KeyMap);
     const lines = [
         "# Flightcheck TODO Report",
         "",
@@ -682,6 +699,9 @@ export function buildMarkdown(inputPath, records, includeOnlyErrors, tier1 = {},
         `- Templates with fixes: ${[...templateGroups.entries()].filter(([, items]) => buildScopedFixTodos(items, "template", siteWideFields, siteWideWarningKeys, siteWideTier1Keys).length > 0).length}`,
         `- Pages with page-specific fixes: ${pageSpecificCount}`,
         ...tier1SummaryLines,
+        "",
+        ...buildHowToUseSection(redirectOnly),
+        ...coverageSection,
         "",
         ...redirectLines,
         ...securityLines,
@@ -710,20 +730,5 @@ export function buildMarkdown(inputPath, records, includeOnlyErrors, tier1 = {},
         lines.push("");
         lines.push(...pageSections);
     }
-    lines.push("");
-    lines.push(...buildCoverageSection(allItems, totalPages, siteWideFields, siteWideWarningKeys, siteWideTier1Keys, templateFieldMap, templateWarningKeyMap, templateTier1KeyMap));
-    lines.push("", "## How to use this report", "");
-    if (redirectOnly) {
-        lines.push("1. Fix redirect issues listed above (status code, Location target, HTTPS/HSTS).");
-        lines.push("2. Re-run flightcheck to confirm the redirect is healthy.");
-        lines.push("3. Run against the final destination URL if you need a full site crawl.");
-    }
-    else {
-        lines.push("1. Fix **site-wide** items once in shared layout/head.");
-        lines.push("2. Fix **template** items in each template file.");
-        lines.push("3. Fix **per-page** items in page content or route-specific files.");
-        lines.push("4. Re-run flightcheck and confirm issue counts drop to zero.");
-    }
-    lines.push("");
     return `${lines.join("\n").replace(/\n{3,}/g, "\n\n").trimEnd()}\n`;
 }

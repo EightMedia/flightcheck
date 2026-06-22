@@ -2,6 +2,8 @@ import { DEFAULT_SITEMAP_URL_SUFFIX, DEFAULT_TIMEOUT_MS, DEFAULT_USER_AGENT } fr
 import { collectUrlsFromSitemap } from "../crawler/sitemap.js";
 import { matchesExcludePattern, normalizeUrl } from "../crawler/urlUtils.js";
 import { issue } from "./issues.js";
+const SITEMAP_URL_NOT_CRAWLED_TIP = "Probable cause: sitemap URLs must match crawled URLs exactly, including hostname (apex vs www). " +
+    "These URLs were not crawled — check page limits, robots blocks, stale sitemap entries, or a failing sitemap regeneration job (cron).";
 function filterComparableUrls(urls, excludePatterns) {
     const normalized = [...new Set(urls.map((url) => normalizeUrl(url)))];
     if (excludePatterns.length === 0)
@@ -49,16 +51,17 @@ export function analyzeSitemapCompare(input) {
     const inSitemapNotCrawled = sitemapPageUrls.filter((url) => !crawledSet.has(url));
     const crawledNotInSitemap = crawledUrls.filter((url) => !sitemapSet.has(url));
     if (inSitemapNotCrawled.length > 0) {
-        issues.push(issue("sitemap-url-not-crawled", "warning", `${inSitemapNotCrawled.length} sitemap URL(s) were not crawled.`));
+        issues.push(issue("sitemap-url-not-crawled", "critical", `${inSitemapNotCrawled.length} sitemap URL(s) were not crawled. ${SITEMAP_URL_NOT_CRAWLED_TIP}`));
     }
     if (crawledNotInSitemap.length > 0) {
-        issues.push(issue("sitemap-missing-crawled-url", "warning", `${crawledNotInSitemap.length} crawled URL(s) are missing from the sitemap.`));
+        issues.push(issue("sitemap-missing-crawled-url", "critical", `${crawledNotInSitemap.length} crawled URL(s) are missing from the sitemap.`));
     }
     const total = new Set([...sitemapPageUrls, ...crawledUrls]).size;
     const mismatchCount = new Set([...inSitemapNotCrawled, ...crawledNotInSitemap]).size;
     const mismatchPercent = total === 0 ? 0 : (mismatchCount / total) * 100;
     if (mismatchPercent > threshold) {
-        issues.push(issue("sitemap-mismatch-threshold", "error", `Sitemap mismatch is ${mismatchPercent.toFixed(1)}% (threshold ${threshold}%).`));
+        issues.push(issue("sitemap-mismatch-threshold", "critical", `Sitemap mismatch is ${mismatchPercent.toFixed(1)}% (threshold ${threshold}%). ` +
+            "Sitemap URLs must match crawled URLs exactly, including hostname."));
     }
     return {
         sources: input.sources,
@@ -116,4 +119,22 @@ export async function runSitemapCheck(options) {
         mismatchThresholdPercent: options.mismatchThresholdPercent,
         excludePatterns: options.excludePatterns,
     });
+}
+export async function collectSitemapPageUrls(startUrl, timeoutMs, robotsSitemapUrls = [], customSitemapUrl) {
+    const origin = new URL(normalizeUrl(startUrl)).origin;
+    const candidates = discoverSitemapCandidates(origin, robotsSitemapUrls);
+    if (customSitemapUrl) {
+        const normalized = normalizeUrl(customSitemapUrl);
+        if (!candidates.includes(normalized)) {
+            candidates.unshift(normalized);
+        }
+    }
+    const pageUrls = new Set();
+    for (const candidate of candidates) {
+        const urls = await collectUrlsFromSitemap(candidate, origin, timeoutMs);
+        for (const url of urls) {
+            pageUrls.add(url);
+        }
+    }
+    return [...pageUrls];
 }

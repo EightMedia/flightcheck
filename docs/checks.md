@@ -13,7 +13,7 @@ together by the CLI.
 | `security-headers` | implemented | Verify HTTP security headers (CSP, HSTS, etc.) |
 | `dns` | implemented | Verify DNS records, SPF/DMARC, and domain ownership signals |
 | `robots-txt` | implemented | Report robots.txt presence, sitemap directives, and crawl blocks |
-| `sitemap` | implemented | Verify sitemap exists and matches crawled URLs (follows sitemap index files; runs after crawl) |
+| `sitemap` | implemented | Verify sitemap exists and exactly matches crawled URLs (same hostname and path; follows sitemap index files; runs after crawl; seeds crawl with sitemap URLs) |
 | `lighthouse` | planned | Lighthouse performance, accessibility, and best-practices audits |
 | `a11y-axe` | planned | WCAG accessibility via axe-core + Playwright (sampled URLs) |
 | `performance` | planned | Core Web Vitals + performance score (optional; replaces lighthouse) |

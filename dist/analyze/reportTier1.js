@@ -123,12 +123,12 @@ export function buildSitemapSection(result) {
     lines.push(`- Mismatch: ${result.mismatchPercent.toFixed(1)}%`);
     lines.push("");
     if (result.inSitemapNotCrawled.length > 0) {
-        lines.push("#### In sitemap but not crawled", "");
+        lines.push("#### In sitemap but not crawled (CRITICAL)", "");
         lines.push(...listSampleUrls(result.inSitemapNotCrawled));
         lines.push("");
     }
     if (result.crawledNotInSitemap.length > 0) {
-        lines.push("#### Crawled but missing from sitemap", "");
+        lines.push("#### Crawled but missing from sitemap (CRITICAL)", "");
         lines.push(...listSampleUrls(result.crawledNotInSitemap));
         lines.push("");
     }

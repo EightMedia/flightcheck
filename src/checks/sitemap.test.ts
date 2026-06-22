@@ -50,7 +50,7 @@ describe("analyzeSitemapCompare", () => {
     expect(result.issues).toContainEqual(
       expect.objectContaining({
         id: "sitemap-url-not-crawled",
-        severity: "warning",
+        severity: "critical",
       })
     );
   });
@@ -71,7 +71,41 @@ describe("analyzeSitemapCompare", () => {
     expect(result.issues).toContainEqual(
       expect.objectContaining({
         id: "sitemap-missing-crawled-url",
-        severity: "warning",
+        severity: "critical",
+      })
+    );
+  });
+
+  it("flags apex vs www hostname mismatch as critical", () => {
+    const result = analyzeSitemapCompare({
+      sources: [
+        {
+          url: "https://www.example.com/sitemap.xml",
+          status: 200,
+          pageUrls: ["https://www.example.com/", "https://www.example.com/about"],
+        },
+      ],
+      crawledUrls: ["https://example.com/", "https://example.com/about"],
+    });
+
+    expect(result.inSitemapNotCrawled).toEqual([
+      "https://www.example.com/",
+      "https://www.example.com/about",
+    ]);
+    expect(result.crawledNotInSitemap).toEqual([
+      "https://example.com/",
+      "https://example.com/about",
+    ]);
+    expect(result.issues).toContainEqual(
+      expect.objectContaining({
+        id: "sitemap-url-not-crawled",
+        severity: "critical",
+      })
+    );
+    expect(result.issues).toContainEqual(
+      expect.objectContaining({
+        id: "sitemap-missing-crawled-url",
+        severity: "critical",
       })
     );
   });
@@ -92,7 +126,7 @@ describe("analyzeSitemapCompare", () => {
     expect(result.issues).toContainEqual(
       expect.objectContaining({
         id: "sitemap-mismatch-threshold",
-        severity: "error",
+        severity: "critical",
       })
     );
   });

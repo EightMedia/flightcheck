@@ -3,6 +3,10 @@ import { collectUrlsFromSitemap } from "../crawler/sitemap.js";
 import { matchesExcludePattern, normalizeUrl } from "../crawler/urlUtils.js";
 import { issue, type CheckIssue } from "./issues.js";
 
+const SITEMAP_URL_NOT_CRAWLED_TIP =
+  "Probable cause: sitemap URLs must match crawled URLs exactly, including hostname (apex vs www). " +
+  "These URLs were not crawled — check page limits, robots blocks, stale sitemap entries, or a failing sitemap regeneration job (cron).";
+
 export type SitemapSourceResult = {
   url: string;
   status: number | null;
@@ -101,8 +105,8 @@ export function analyzeSitemapCompare(input: AnalyzeSitemapCompareInput): Sitema
     issues.push(
       issue(
         "sitemap-url-not-crawled",
-        "warning",
-        `${inSitemapNotCrawled.length} sitemap URL(s) were not crawled.`
+        "critical",
+        `${inSitemapNotCrawled.length} sitemap URL(s) were not crawled. ${SITEMAP_URL_NOT_CRAWLED_TIP}`
       )
     );
   }
@@ -111,7 +115,7 @@ export function analyzeSitemapCompare(input: AnalyzeSitemapCompareInput): Sitema
     issues.push(
       issue(
         "sitemap-missing-crawled-url",
-        "warning",
+        "critical",
         `${crawledNotInSitemap.length} crawled URL(s) are missing from the sitemap.`
       )
     );
@@ -125,8 +129,9 @@ export function analyzeSitemapCompare(input: AnalyzeSitemapCompareInput): Sitema
     issues.push(
       issue(
         "sitemap-mismatch-threshold",
-        "error",
-        `Sitemap mismatch is ${mismatchPercent.toFixed(1)}% (threshold ${threshold}%).`
+        "critical",
+        `Sitemap mismatch is ${mismatchPercent.toFixed(1)}% (threshold ${threshold}%). ` +
+          "Sitemap URLs must match crawled URLs exactly, including hostname."
       )
     );
   }
@@ -210,4 +215,30 @@ export async function runSitemapCheck(options: RunSitemapCheckOptions): Promise<
     mismatchThresholdPercent: options.mismatchThresholdPercent,
     excludePatterns: options.excludePatterns,
   });
+}
+
+export async function collectSitemapPageUrls(
+  startUrl: string,
+  timeoutMs: number,
+  robotsSitemapUrls: string[] = [],
+  customSitemapUrl?: string
+): Promise<string[]> {
+  const origin = new URL(normalizeUrl(startUrl)).origin;
+  const candidates = discoverSitemapCandidates(origin, robotsSitemapUrls);
+  if (customSitemapUrl) {
+    const normalized = normalizeUrl(customSitemapUrl);
+    if (!candidates.includes(normalized)) {
+      candidates.unshift(normalized);
+    }
+  }
+
+  const pageUrls = new Set<string>();
+  for (const candidate of candidates) {
+    const urls = await collectUrlsFromSitemap(candidate, origin, timeoutMs);
+    for (const url of urls) {
+      pageUrls.add(url);
+    }
+  }
+
+  return [...pageUrls];
 }

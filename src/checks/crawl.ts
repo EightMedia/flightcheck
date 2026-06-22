@@ -3,13 +3,12 @@ import {
   DEFAULT_CONCURRENCY,
   DEFAULT_DELAY_MS,
   DEFAULT_MAX_PAGES,
-  DEFAULT_SITEMAP_URL_SUFFIX,
   DEFAULT_TIMEOUT_MS,
 } from "../crawler/defaults.js";
 import { resolveActiveGroups, type CheckGroup } from "../crawler/checkGroups.js";
 import { buildDefaultOutputPaths } from "../crawler/outputPaths.js";
 import { runCrawler } from "../crawler/runCrawler.js";
-import { collectUrlsFromSitemap } from "../crawler/sitemap.js";
+import { collectSitemapPageUrls } from "./sitemap.js";
 import { isHttpUrl, matchesExcludePattern, normalizeUrl, parseExcludePatterns } from "../crawler/urlUtils.js";
 import type { CrawlCheckResult } from "./types.js";
 
@@ -68,14 +67,24 @@ export async function prepareCrawlSeedUrls(options: CrawlCheckOptions): Promise<
   const normalizedStartUrl = normalizeUrl(options.startUrl);
   const defaultPaths = buildDefaultOutputPaths(normalizedStartUrl);
   const outputPath = options.outputPath ?? defaultPaths.rawJson;
-  const origin = new URL(normalizedStartUrl).origin;
   const excludePatterns = options.excludePatterns ?? [];
-  const sitemapUrl = options.sitemapUrl ?? `${origin}${DEFAULT_SITEMAP_URL_SUFFIX}`;
+
+  const sitemapPageUrls = await collectSitemapPageUrls(
+    normalizedStartUrl,
+    timeoutMs,
+    [],
+    options.sitemapUrl
+  );
 
   let seedUrls = [normalizedStartUrl];
+  for (const url of sitemapPageUrls) {
+    if (!seedUrls.includes(url)) {
+      seedUrls.push(url);
+    }
+  }
+
   if (options.sitemapStart) {
-    const sitemapUrls = await collectUrlsFromSitemap(sitemapUrl, origin, timeoutMs);
-    seedUrls = Array.from(sitemapUrls);
+    seedUrls = [...sitemapPageUrls];
     if (!seedUrls.includes(normalizedStartUrl)) {
       seedUrls.unshift(normalizedStartUrl);
     }
