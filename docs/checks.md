@@ -15,8 +15,7 @@ together by the CLI.
 | `robots-txt` | implemented | Report robots.txt presence, sitemap directives, and crawl blocks |
 | `sitemap` | implemented | Verify sitemap exists and exactly matches crawled URLs (same hostname and path; follows sitemap index files; runs after crawl; seeds crawl with sitemap URLs) |
 | `lighthouse` | planned | Lighthouse performance, accessibility, and best-practices audits |
-| `a11y-axe` | planned | WCAG accessibility via axe-core + Playwright (sampled URLs) |
-| `performance` | planned | Core Web Vitals + performance score (optional; replaces lighthouse) |
+| `redirect` | implemented | Always-on pipeline check (not a `--checks` registry id): probes the start URL for HTTP redirects, validates the apex ↔ www alias, and drives redirect-only mode (`dns`, `analyze`) |
 
 ### Crawl check groups (Tier 1)
 

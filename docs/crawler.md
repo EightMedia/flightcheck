@@ -22,13 +22,20 @@ bestandsnamen op basis van timestamp en hostname, bijvoorbeeld:
 - `./flightcheck/20260618.1413-eight.nl-raw.json`
 - `./flightcheck/20260618.1413-eight.nl-report.md`
 
+De analyze-stap schrijft daarnaast een fix-manifest en een map met agent-jobs naast
+het rapport:
+
+- `./flightcheck/20260618.1413-eight.nl-fix-manifest.json`
+- `./flightcheck/20260618.1413-eight.nl-agent-jobs/`
+
 Met `--json-only` sla je het Markdown-rapport over.
 
 Belangrijkste flags:
 
 - `--output <file>` default `{timestamp}-{hostname}-raw.json` in `./flightcheck/`
 - `--report <file>` default `{timestamp}-{hostname}-report.md` in `./flightcheck/`
-- `--json-only` alleen JSON schrijven, geen Markdown-rapport
+- `--json-only` alleen JSON schrijven, geen Markdown-rapport; bij `--json-only` vallen de default-checks terug op alleen `crawl`
+- `--errors-only` neem alleen records met errors of ontbrekende attributen op in het rapport
 - `--checks <ids>` comma-separated checks; default: all implemented checks (`crawl`, `security-headers`, `dns`, `robots-txt`, `sitemap`, `analyze`)
 - `--parallel` run independent checks in the same wave concurrently
 - `--max-pages <n>`
@@ -44,6 +51,7 @@ Belangrijkste flags:
 - `--only <groups>` draai alleen deze check-groepen (komma-gescheiden)
 - `--skip <groups>` sla deze check-groepen over (komma-gescheiden)
 - `--reveal-secrets` toon volledige secret-waarden in plaats van gemaskeerde
+- `--repo <path>` pad naar de site-repo voor agent-prompt overrides (`.flightcheck/prompts/`)
 
 Voorbeelden:
 
@@ -64,13 +72,17 @@ De extractie is opgedeeld in benoemde groepen. Standaard draaien alle groepen; m
 `--only` draai je er één of enkele, met `--skip` sluit je groepen uit. `--only` en
 `--skip` kunnen niet samen worden gebruikt.
 
-- `meta` — title, h1, description, robots, charset, language, viewport, doctype,
-  canonical, color-scheme, theme-color, main landmark count.
+- `meta` — title, h1, description, robots, template, metaTitle, charset, language,
+  viewport, doctype, canonical, color-scheme, theme-color, main landmark count.
 - `icons` — favicon en icons.
 - `social` — Open Graph en Twitter metadata.
 - `tracking` — GTM, GA4, UA, Matomo, Facebook Pixel, Plausible.
 - `stack` — technology fingerprints via curated rules (see [stack.md](./stack.md)).
 - `security` — scan op gelekte API-keys en secrets (zie hieronder).
+- `images` — extraheert image-alt problemen naar `images.issues` (missing-alt,
+  empty-alt, generic-alt).
+- `a11y-static` — statische toegankelijkheidschecks naar `a11yStatic.issues`
+  (heading-skip, multiple-h1, missing-lang, unlabeled-input, positive-tabindex).
 
 ### Sitemap parsing
 
@@ -87,8 +99,11 @@ een severity:
 - `critical` — hoort nooit in client-code (AWS-keys, Stripe secret keys, GitHub
   tokens, private-key blocks, generieke `secret`/`password` toewijzingen).
 - `review` — normaal in client-code maar hoort domein-/referrer-beperkt te zijn
-  (Google API-keys, Firebase config, Stripe publishable keys, generieke
-  `apiKey`/`token`).
+  (Google API-keys, Stripe publishable keys, generieke `apiKey`/`token`).
+
+De providers/patterns zijn: google-api-key (`google`), aws-access-key-id (`aws`),
+stripe-secret-key en stripe-publishable-key (`stripe`), github-token (`github`),
+private-key, generic-secret en generic-api-key (`generic`).
 
 Secret-waarden worden standaard gemaskeerd (`AIzaSy…BC0Y`). De samenvatting toont dan
 een hint om opnieuw te draaien met `--reveal-secrets` voor de volledige waarden.
@@ -101,7 +116,7 @@ output-structuur verandert nooit.
 Elke record bevat:
 
 - URL en status
-- H1/title/meta velden
+- H1/title/meta velden, inclusief `template` (uit `meta[name="template"]`) en `metaTitle`
 - `mainCount` (aantal `<main>`-elementen, `null` wanneer meta-groep overgeslagen is)
 - canonical/favicon/icons
 - OG en Twitter metadata
@@ -109,6 +124,8 @@ Elke record bevat:
 - `stack.detections` — technology fingerprints per pagina (geaggregeerd in analyze)
 - `security` met `secrets` (gevonden keys/secrets) en `scannedAssets` (aantal
   gescande JS-bestanden)
+- `images.issues` — image-alt problemen (alleen wanneer de `images`-groep draait)
+- `a11yStatic.issues` — statische a11y-bevindingen (alleen wanneer de `a11y-static`-groep draait)
 - optionele `note` en `error`
 
 Tekstvelden worden altijd gevuld met een string, dus geen `undefined` of `null`.
@@ -121,10 +138,14 @@ bevindingen, een `hint`.
 
 ## Architectuur
 
-De code is opgesplitst in drie lagen:
+De CLI draait via de checks-laag (`runChecks` in `src/checks/runner.ts`), die de
+crawler aanstuurt; `src/cli.ts` roept dus niet langer `runCrawler` rechtstreeks aan.
+De checks-laag plant de checks in waves en levert de crawl- en analyze-output.
 
+- Checks-laag: `src/checks/runner.ts`, `src/checks/crawl.ts`, `src/checks/types.ts`
 - Crawl laag: `src/crawler/runCrawler.ts`
-- Extract laag: `src/crawler/extractors.ts` en `src/crawler/tracking.ts`
+- Extract laag: `src/crawler/extractors.ts`, `src/crawler/tier1Extractors.ts`,
+  `src/crawler/tracking.ts`, `src/crawler/secrets.ts` en `src/crawler/stack.ts`
 - Report laag: `src/crawler/reporter.ts`
 
 Daarnaast:

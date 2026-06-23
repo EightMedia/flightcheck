@@ -32,7 +32,11 @@ agent-orchestratie (automatisch tijdens analyze).
 
 Het rapport is opgebouwd voor AI agents en developers. Werk het van boven naar beneden af.
 
-### Summary
+Het rapport opent met een titelblok: een `# Flightcheck TODO Report` heading, gevolgd door
+een `Generated:`-regel (ISO-timestamp) en een `Input:`-regel met het pad naar het
+geanalyseerde JSON-bestand.
+
+## Summary
 
 Korte telling: hoeveel pagina's gescand, hoeveel pagina's issues hebben, site-wide fixes,
 welke templates fixes nodig hebben, en een **Issues summary** per categorie.
@@ -48,10 +52,11 @@ Voorbeeld:
 
 ### Issues summary
 
-- **Infra:** 4 issue(s) — DNS (1), security headers (2), robots.txt (1)
+- **Infra:** 4 issue(s) — DNS (1 issue(s)), security headers (2 issue(s)), robots.txt (1 issue(s))
 - **SEO:** 42 issue(s) on 18 page(s)
 - **A11y:** 8 issue(s) on 6 page(s) — image alt + static hints
 - **Best practices:** 3 issue(s) on 2 page(s) — landmarks, robots, template meta
+- **Security:** 2 finding(s) on 1 page(s)
 - **Performance:** not checked
 ```
 
@@ -66,12 +71,12 @@ Categorieën:
 | **Security** | Crawl secrets scan | Alleen getoond wanneer secrets gevonden |
 | **Performance** | `lighthouse` / `performance` check (planned) | `not checked` tot Tier 3 actief is |
 
-### How to use this report
+## How to use this report
 
 Stappenplan om iteratief te verbeteren. Staat direct onder de summary zodat je de fix-volgorde
 kent voordat je de todo-secties doorloopt.
 
-### Issue coverage
+## Issue coverage
 
 Referentietabel: hoe vaak elk issue voorkomt en of het site-wide, template-scoped of
 page-specific is. Staat bovenaan als overzicht voordat je aan de fixes begint.
@@ -83,21 +88,29 @@ Voorbeeld:
 - `h1`: 1/20 pages (page-specific)
 ```
 
-### 🔑 Security
+## 🔑 Security
 
 Secrets/API-keys per URL (severity `critical` eerst). Bij gemaskeerde waarden staat een hint
 om opnieuw te crawlen met `--reveal-secrets`.
 
-### DNS
+## DNS
 
 Overzicht van A/MX/NS-records, SPF/DMARC-signalen en actionable todos voor ontbrekende mail-security
 records.
 
-### Security headers
+## Stack
+
+Wordt als `## Stack` heading binnen het infra-blok geplaatst, direct na de DNS-sectie en vóór
+security headers en robots.txt. Informatieve sectie met gedetecteerde hosting, framework, CMS,
+backend-services en tracking-scripts. Geaggregeerd uit de crawl-records via
+`aggregateStackFromRecords(records)` (of een meegegeven `options.stackProfile`) — niet uit de
+Tier 1 security-headers- of DNS-resultaten. Zie [stack.md](./stack.md).
+
+## Security headers
 
 Resultaat van de `security-headers` check: ontbrekende HSTS, CSP, clickjacking-bescherming, enz.
 
-### Robots.txt & sitemap
+## Robots.txt & sitemap
 
 Resultaat van de `robots-txt` en `sitemap` checks (overgeslagen in redirect-only mode).
 
@@ -105,7 +118,7 @@ Sitemap-vergelijking vereist een exacte match tussen sitemap- en crawl-URL's, in
 (apex vs www). Elke afwijking krijgt severity `critical`, met tips over de waarschijnlijke oorzaak
 (bijvoorbeeld verkeerde hostname in de sitemap of een falende sitemap-build/cron job).
 
-### Domain redirect
+## Domain redirect
 
 Wanneer de start-URL een HTTP-redirect teruggeeft, schakelt flightcheck over op
 redirect-only mode. Het rapport toont statuscode, `Location`, target-bereikbaarheid en
@@ -113,13 +126,7 @@ redirect-issues. Daarnaast wordt de alternate host (apex ↔ www) gecontroleerd:
 niet-canonical host moet permanent doorverwijzen naar de canonical host uit de start-URL
 (of het redirect-doel). Er wordt niet gecrawld.
 
-### Stack
-
-Informatieve sectie met gedetecteerde hosting, framework, CMS, backend-services en
-tracking-scripts. Geaggregeerd uit crawl (`stack` + `tracking` groepen), response headers
-(`security-headers` check) en DNS (`dns` check). Zie [stack.md](./stack.md).
-
-### Fix site-wide (all pages)
+## Fix site-wide (all pages)
 
 Issues die op **elke** gescande pagina voorkomen. Fix één keer in root layout, shared head
 partial of global SEO config.
@@ -132,7 +139,7 @@ Voorbeeld:
 - [ ] Add Twitter meta tags to site layout head: twitter:card, twitter:title, twitter:description, twitter:image
 ```
 
-### Fix in templates
+## Fix in templates
 
 Alleen als `<meta name="template">` tags gevonden zijn. Issues die op **alle** pagina's met
 dezelfde template voorkomen, maar niet op de hele site. Fix in het template-bestand.
@@ -146,7 +153,7 @@ Voorbeeld:
 - [ ] Add Twitter meta tags to template head: twitter:card, twitter:title, twitter:description, twitter:image
 ```
 
-### Fix per page
+## Fix per page
 
 Resterende issues per URL — meestal page-specific content. Site-wide en template-fixes worden
 hier niet herhaald. Bevat ook Tier 1 crawl-issues zoals ontbrekende image alt-teksten en

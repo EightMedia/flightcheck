@@ -5,8 +5,8 @@ sites. Covers hreflang, robots.txt, stack detection, sitemap validation, legal p
 image alt text, broken links, accessibility, security headers, DNS, and optional
 performance auditing.
 
-**Status:** planning  
-**Last updated:** 2026-06-19
+**Status:** in progress — Phase 1 shipped, Phase 2 mostly shipped  
+**Last updated:** 2026-06-23
 
 ---
 
@@ -35,7 +35,7 @@ Instead, use four tiers:
 | Tier | Engine | Chrome? | Covers |
 | --- | --- | --- | --- |
 | **0** | Crawl + analyze (existing) | No | Meta, OG, tracking, secrets, main landmark |
-| **1** | Fetch + cheerio (planned) | No | SEO depth, headers, DNS, links, robots, sitemap, legal, stack, static a11y hints |
+| **1** | Fetch + cheerio (implemented) | No | SEO depth, headers, DNS, links, robots, sitemap, legal, stack, static a11y hints |
 | **2** | axe-core + Playwright (planned) | Yes, 3–5 URLs | Real WCAG a11y (contrast, focus, ARIA in rendered DOM) |
 | **3** | Lighthouse or PageSpeed API (optional) | Yes / remote | Performance scores + Core Web Vitals only |
 
@@ -72,9 +72,9 @@ client-facing performance reports.
 | Tracking | GTM, GA4, Matomo, etc. detection |
 | Security | Secret scan in HTML + same-origin JS |
 | Landmarks | `<main>` count |
-| Infra | `robots.txt` used only when `--respect-robots-txt` (not reported) |
-| Sitemap | Optional crawl seed via `--sitemap-start`; no validation report |
-| Standalone checks | `lighthouse`, `security-headers`, `dns` registered but unsupported |
+| Infra | `robots-txt`, `security-headers`, `dns` checks implemented and reported |
+| Sitemap | `sitemap` check implemented — validates and diffs against crawled URLs |
+| Standalone checks | `security-headers`, `dns`, `robots-txt`, `sitemap`, `redirect` implemented; `lighthouse` registered but unsupported |
 
 ---
 
@@ -87,7 +87,7 @@ client-facing performance reports.
 Best when the check inspects each HTML page:
 
 - hreflang
-- image alt (+ static a11y hints: headings, form labels, skip links)
+- image alt (+ static a11y hints: headings, multiple h1, form labels, lang, positive tabindex)
 - broken links (internal + optional external)
 - stack fingerprints (per-page signals aggregated site-wide)
 
@@ -198,11 +198,15 @@ type CrawlCheckResult = {
 
 ---
 
-### 2. Robots.txt (`robots-txt` — standalone check)
+### 2. Robots.txt (`robots-txt` — standalone check) — IMPLEMENTED
+
+**Status:** Implemented in `src/checks/robots-txt.ts` (`runRobotsTxtCheck()`).
 
 **Purpose:** Report robots.txt presence and common misconfigurations.
 
-**Reuse:** Extend `src/crawler/robots.ts` — today it only returns `isAllowed()`.
+**Note:** The robots.txt report logic lives in the standalone `src/checks/robots-txt.ts`.
+`src/crawler/robots.ts` is separate and only provides `isAllowed()` for `--respect-robots-txt`
+crawl behaviour — it is **not** extended by this check.
 
 **Fetch:** `{origin}/robots.txt`
 
@@ -234,7 +238,10 @@ by default.
 
 ---
 
-### 3. Stack detection (`stack` — crawl group + aggregation)
+### 3. Stack detection (`stack` — crawl group + aggregation) — IMPLEMENTED
+
+**Status:** Implemented — per-page fingerprinting in `src/crawler/stackDetect.ts`,
+site-wide aggregation in `src/analyze/stack.ts`.
 
 **Purpose:** Report CMS, framework, and hosting signals for handover docs and debugging.
 
@@ -272,7 +279,9 @@ conflicting signals).
 
 ---
 
-### 4. Sitemap (`sitemap` — standalone check)
+### 4. Sitemap (`sitemap` — standalone check) — IMPLEMENTED
+
+**Status:** Implemented in `src/checks/sitemap.ts` (`runSitemapCheck()`).
 
 **Purpose:** Verify sitemap exists and matches crawled site.
 
@@ -324,7 +333,10 @@ const DEFAULT_LEGAL_PATHS = [
 
 ---
 
-### 6. Image alt + static a11y (`images`, `a11y-static` — crawl groups)
+### 6. Image alt + static a11y (`images`, `a11y-static` — crawl groups) — IMPLEMENTED
+
+**Status:** Implemented in `src/crawler/tier1Extractors.ts`; output fields `images` and
+`a11yStatic` are defined on `VerificationRecord` in `src/crawler/schema.ts`.
 
 **Purpose:** Tier 1 accessibility and SEO — no browser required.
 
@@ -338,14 +350,13 @@ Issue messages include a clickable markdown link `[filename](url)` when the imag
 resolved from `src`, `srcset`, `<picture>` / `<source>` elements, or nested `/_next/image?url=…`
 proxy URLs.
 
-**Static a11y hints (`a11y-static` group):**
+**Static a11y hints (`a11y-static` group):** implemented rule IDs:
 
-- Heading hierarchy skips (h1 → h3)
-- Multiple h1 elements
-- Form inputs without associated labels
-- Missing `lang` on `<html>`
-- Missing skip-navigation link (site-wide heuristic)
-- Positive tabindex values
+- `heading-skip` — heading hierarchy skips a rank (h1 → h3)
+- `multiple-h1` — multiple h1 elements
+- `unlabeled-input` — form inputs without associated labels
+- `missing-lang` — missing `lang` on `<html>`
+- `positive-tabindex` — positive tabindex values
 
 **Decorative image exclusions:**
 
@@ -478,7 +489,9 @@ are covered by Tier 0/1 and `a11y-axe`.
 
 ---
 
-### 10. Security headers (`security-headers` — standalone check)
+### 10. Security headers (`security-headers` — standalone check) — IMPLEMENTED
+
+**Status:** Implemented in `src/checks/security-headers.ts` (`runSecurityHeadersCheck()`).
 
 **Purpose:** Tier 1 best practices — verify HTTP security headers.
 
@@ -497,7 +510,9 @@ Pure fetch — no browser needed.
 
 ---
 
-### 11. DNS (`dns` — standalone check)
+### 11. DNS (`dns` — standalone check) — IMPLEMENTED
+
+**Status:** Implemented in `src/checks/dns.ts` (`runDnsCheck()`).
 
 **Purpose:** Record locations, ownership signals, and email security.
 
@@ -513,6 +528,15 @@ Pure fetch — no browser needed.
 **Geo/locations:** Resolve A records → optional IP geolocation (informational).
 
 **Note:** WHOIS opt-in (`dns: { whois: true }`).
+
+---
+
+### 12. Redirect (`redirect` — standalone check) — IMPLEMENTED
+
+**Status:** Implemented in `src/checks/redirect.ts`. Probes the start URL (and www/non-www
+alias), and when the origin is a pure redirect it drives **redirect-only mode** — short-circuiting
+the pipeline to a reduced check set instead of a full crawl/analyze. Output feeds the
+"Domain redirect" analyze section.
 
 ---
 
@@ -534,6 +558,10 @@ type FlightcheckReport = {
 };
 ```
 
+The **Issues summary** and Tier 1 infra report sections (redirect, DNS, security headers,
+robots.txt, sitemap) are implemented in `src/analyze/reportTier1.ts` and wired into the main
+report via `src/analyze/report.ts`.
+
 Report sections (top to bottom):
 
 1. Summary (pages analyzed, fix scopes, **Issues summary** by category: infra, SEO, a11y, best practices, performance)
@@ -554,19 +582,19 @@ Report sections (top to bottom):
 
 ## Implementation phases
 
-### Phase 1 — Tier 1 quick wins (1–2 weeks)
+### Phase 1 — Tier 1 quick wins (1–2 weeks) — SHIPPED
 
 No browser required. Covers most SEO + best practices.
 
-| Task | Type | Files |
-| --- | --- | --- |
-| Security headers check | standalone | `src/checks/security-headers.ts` |
-| Robots.txt check | standalone | `src/crawler/robots.ts`, `src/checks/robots-txt.ts` |
-| DNS check | standalone | `src/checks/dns.ts` |
-| Image alt + static a11y crawl groups | crawl | `src/crawler/extractors.ts`, `schema.ts` |
-| Register checks + wave plan | infra | `types.ts`, `registry.ts`, `runner.ts` |
-| Analyze sections | report | `src/analyze/report.ts` |
-| Tests + docs | | `*.test.ts`, `docs/checks.md` |
+| Task | Type | Files | Status |
+| --- | --- | --- | --- |
+| Security headers check | standalone | `src/checks/security-headers.ts` | done |
+| Robots.txt check | standalone | `src/checks/robots-txt.ts` | done |
+| DNS check | standalone | `src/checks/dns.ts` | done |
+| Image alt + static a11y crawl groups | crawl | `src/crawler/tier1Extractors.ts`, `schema.ts` | done |
+| Register checks + wave plan | infra | `types.ts`, `registry.ts`, `runner.ts` | done |
+| Analyze sections | report | `src/analyze/report.ts`, `src/analyze/reportTier1.ts` | done |
+| Tests + docs | | `*.test.ts`, `docs/checks.md` | done |
 
 **Deliverable:**
 
@@ -576,17 +604,18 @@ pnpm run flightcheck -- https://example.com --checks crawl,security-headers,dns,
 
 ---
 
-### Phase 2 — Crawl depth + infra (2–3 weeks)
+### Phase 2 — Crawl depth + infra (2–3 weeks) — MOSTLY SHIPPED
 
-| Task | Type | Files |
-| --- | --- | --- |
-| Broken links group | crawl | `src/crawler/links.ts` |
-| Hreflang group | crawl | `src/crawler/hreflang.ts` |
-| Stack detection | crawl + aggregate | `src/crawler/stack.ts` |
-| Sitemap compare | standalone | `src/checks/sitemap.ts` |
-| Legal pages | standalone | `src/checks/legal-pages.ts` |
-| URL sampler (shared) | util | `src/checks/sampleUrls.ts` |
-| Analyze integration | report | `src/analyze/report.ts` |
+| Task | Type | Files | Status |
+| --- | --- | --- | --- |
+| Stack detection | crawl + aggregate | `src/crawler/stackDetect.ts`, `src/analyze/stack.ts` | done |
+| Sitemap compare | standalone | `src/checks/sitemap.ts` | done |
+| Image alt + static a11y | crawl | `src/crawler/tier1Extractors.ts` | done |
+| Broken links group | crawl | `src/crawler/links.ts` | not implemented |
+| Hreflang group | crawl | `src/crawler/hreflang.ts` | not implemented |
+| Legal pages | standalone | `src/checks/legal-pages.ts` | not implemented |
+| URL sampler (shared) | util | `src/checks/sampleUrls.ts` | not implemented |
+| Analyze integration | report | `src/analyze/report.ts` | done |
 
 **Deliverable:** Full metadata + link + infra report without any browser.
 
@@ -616,7 +645,7 @@ pnpm run flightcheck -- https://example.com --checks crawl,a11y-axe --parallel
 | `runPerformanceCheck()` | Lighthouse or PageSpeed Insights adapter pattern |
 | `--performance-provider lighthouse\|pagespeed` | Default `pagespeed` in CI, `lighthouse` locally |
 | Analyze performance section | CWV metrics + opportunities only |
-| Deprecate standalone `lighthouse` check ID | Rename registry entry to `performance` |
+| Deprecate standalone `lighthouse` check ID | Rename registry entry to `performance` (not yet done — `lighthouse` is still the registered id with `implemented: false` in `src/checks/registry.ts`) |
 
 **Deliverable:**
 
@@ -641,7 +670,7 @@ pnpm run flightcheck -- https://example.com --profile delivery-full
 
 | Profile | Checks | Browser? |
 | --- | --- | --- |
-| `default` | crawl, analyze | No |
+| `default` | crawl + security-headers + dns + robots-txt + sitemap + analyze (`DEFAULT_CHECK_IDS` in `src/checks/types.ts`) | No |
 | `delivery` | crawl + all Tier 1 + sitemap + legal + a11y-axe + analyze | Yes, 3–5 URLs |
 | `delivery-full` | `delivery` + performance | Yes, 3–5 URLs |
 | `maintenance` | crawl + analyze + baseline-diff (future) | No |
@@ -654,14 +683,24 @@ pnpm run flightcheck -- https://example.com --profile delivery
 
 ## New check IDs (registry)
 
-Replace `lighthouse` with:
+Currently registered in `src/checks/registry.ts`:
 
 ```text
-robots-txt
-sitemap
+crawl            (implemented)
+analyze          (implemented)
+security-headers (implemented)
+dns              (implemented)
+robots-txt       (implemented)
+sitemap          (implemented)
+lighthouse       (registered, implemented: false — NOT yet renamed to performance)
+```
+
+Still to add / rename:
+
+```text
 legal-pages
 a11y-axe
-performance   (optional Tier 3; replaces lighthouse)
+performance   (optional Tier 3; planned to replace lighthouse — rename not done yet)
 ```
 
 Crawl groups:
@@ -686,8 +725,8 @@ Updated wave plan:
 ["analyze"]
 ```
 
-Update `src/checks/types.ts` — rename `lighthouse` → `performance`, add `a11y-axe`,
-`robots-txt`, `sitemap`, `legal-pages`.
+Still to do in `src/checks/types.ts` — rename `lighthouse` → `performance` (not yet done),
+add `a11y-axe` and `legal-pages`. (`robots-txt` and `sitemap` are already present.)
 
 ---
 

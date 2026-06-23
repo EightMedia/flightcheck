@@ -18,7 +18,7 @@ HTML markers, response headers, DNS). This avoids false positives from loose sub
 | Hosting | Vercel, Netlify |
 | CDN | Cloudflare, AWS CloudFront |
 
-Tracking (Google Tag Manager, GA4, Universal Analytics, Facebook Pixel, Matomo, Plausible) is
+Tracking (Google Tag Manager, Google Analytics (GA4), Google Analytics (Universal), Facebook Pixel, Matomo, Plausible) is
 detected separately by the `tracking` crawl group and shown under **Tracking (flightcheck crawl)**
 in the stack section.
 
@@ -52,13 +52,13 @@ during analyze.
 ```markdown
 ## Stack
 
-### Framework
-- **Next.js** (high, site-wide)
-  - html: `data-next-head`
-
 ### Platform
 - **Node.js** (medium, site-wide)
   - implied by Next.js
+
+### Framework
+- **Next.js** (high, site-wide)
+  - html: `data-next-head`
 
 ### Hosting
 - **Vercel** (high, origin)
@@ -100,5 +100,8 @@ Add tests in `src/crawler/stackDetect.test.ts`.
 
 ## Legacy webappanalyzer data
 
-The `data/webappanalyzer/` directory and `pnpm run sync:webappanalyzer` script remain in the repo
-but are **no longer used** for stack detection. They may be removed in a future cleanup.
+An entire webappanalyzer engine still ships in the repo: the `src/crawler/webappanalyzer/`
+TypeScript engine (`engine.ts`, `detect.ts`, `patterns.ts`, `types.ts`, `buildItems.ts`,
+`dom.ts`), the `data/webappanalyzer/` directory, and the `pnpm run sync:webappanalyzer` script.
+None of it is on the active detection path — the engine is not imported anywhere in `src/`, and
+detection runs entirely through `src/crawler/stackDetect.ts`. It may be removed in a future cleanup.
