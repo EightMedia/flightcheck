@@ -39,7 +39,7 @@ async function main() {
             autoFixable: summary.autoFixableCount,
             manual: summary.manualCount,
             packages: summary.packages,
-            nextStep: "Open README.md in the output folder — paste each prompt.md into a separate Cursor agent chat.",
+            nextStep: "Open the output folder: read BASE.md once and PLAN.md for the order, then point an agent at each package folder's prompt.md (one PR each).",
         }, null, 2)}\n`);
     });
     await program.parseAsync(process.argv);

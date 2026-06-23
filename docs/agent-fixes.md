@@ -3,7 +3,12 @@
 Flightcheck output is designed to feed AI agents that propose fixes as **small, reviewable pull
 requests**. Humans use the Markdown report; agents use a fix manifest plus modular prompt files.
 
-**Status:** fix manifest export implemented; stack detection implemented (WIP heuristics).
+**Status:** fix manifest, orchestrator, and agent-jobs output implemented; stack detection implemented (WIP heuristics).
+
+Agent jobs are designed for **consumability**: shared rules live once in `BASE.md` (referenced, not
+inlined), per-package `prompt.md` files stay small (issues summarized, full list in `package.json`),
+issues are deduped against site-wide coverage and routed by fix surface, and non-fixable crawl
+artifacts are quarantined in `REVIEW.md`. See **Agent jobs** below.
 
 See [stack.md](./stack.md) for detection rules and report output.
 
@@ -40,20 +45,24 @@ type StackDetection = {
 };
 ```
 
-### Stack → agent routing (for fix manifest)
+### Stack → agent routing (implemented)
 
-When `buildFixManifest()` lands, map high-confidence detections to work package hints:
+`buildFixManifest()` maps non-low-confidence detections to work package hints:
 
 | Detection | Category | Affects packages | MCP / prompt hints |
 | --- | --- | --- | --- |
-| Next.js, Nuxt, Gatsby, Astro, … | framework | `seo-*`, `a11y-static` | `app/layout.tsx`, `generateMetadata`, `lib/seo.ts` |
-| Sanity, Contentful, Storyblok, Prismic | backend | `cms-content`, image alt from CDN | `sanity` MCP, `cms-sanity-metadata.md` |
+| Next.js, Nuxt, Gatsby, Astro, … | framework | `seo-*`, `a11y-pages` | Pages vs App Router hints (`pages/_app.tsx` / `app/layout.tsx`, `next/head` / `generateMetadata`) |
+| Sanity, Contentful, WordPress, Prismic, … | cms | `cms-content` (descriptions, image alt) | CMS MCP (e.g. `sanity`), `cms-content.md` |
 | Vercel | hosting | `infra-headers` | `vercel` MCP or `next.config` headers |
 | Netlify | hosting | `infra-headers` | `netlify` MCP, `netlify.toml` |
-| WordPress, Shopify, Webflow, … | cms | `seo-*`, `cms-content` | CMS-specific prompts (future) |
 
-Low-confidence signals (e.g. nginx from `Server` header) should not override routing — use
-`confidence === "high"` or corroboration across HTML + headers + DNS before setting `mcpServers`.
+Low-confidence signals (e.g. nginx from `Server` header) do not affect routing — `mcpServers` and the
+CMS-content split require `confidence !== "low"`.
+
+When a CMS is detected, editorial content (meta/social **descriptions** and image **alt text**) is
+split out of the repo SEO/a11y packages into a dedicated `cms-content` package (`fixSurface: cms`,
+`locationDiscovery: cms-studio`) gated by the approval flow. Conservatively, `title`/`h1` stay in the
+repo packages — a missing one is usually a template bug, not empty content.
 
 Example manifest `stack` block (derived from `StackProfile`):
 
@@ -97,8 +106,10 @@ Example manifest `stack` block (derived from `StackProfile`):
 | --- | --- | --- |
 | `*-raw.json` | Machine | Source of truth from all checks |
 | `*-report.md` | Human | Summary, priorities, grouped todos |
-| `*-fix-manifest.json` | Agents / orchestrator | Work packages, routing, verification hooks |
-| `*-agent-jobs/` | Agents | Per-package `prompt.md` files (one PR each) |
+| `*-fix-manifest.json` | Agents / orchestrator | Work packages, routing, `reviewItems`, verification hooks |
+| `*-agent-jobs/` | Agents | `BASE.md`, `PLAN.md`, `REVIEW.md`, README, and one folder per package |
+| `*-agent-jobs/{pkg}/prompt.md` | Sub-agents | Small per-package brief that references `BASE.md` |
+| `*-agent-jobs/{pkg}/package.json` | Machine | Full work package incl. every issue URL |
 | `prompts/fix/*.md` | Sub-agents | How to fix each domain (composed at runtime) |
 
 The Markdown report stays client-friendly. Do **not** embed full agent prompts in the report.
@@ -109,20 +120,30 @@ The Markdown report stays client-friendly. Do **not** embed full agent prompts i
 
 Each work package maps to **one pull request**. Bundle by fix surface, not only by category.
 
-| Package ID | Report section | Fix surface | Typical PR repo |
-| --- | --- | --- | --- |
-| `seo-site-wide` | Fix site-wide | Code (layout, shared SEO) | Site repo |
-| `seo-template-{name}` | Fix in templates | Code (template files) | Site repo |
-| `seo-pages` | Fix per page | Code (routes, page components) | Site repo |
-| `a11y-static` | Image alt, a11y-static | Code ± CMS | Site repo (+ CMS PR if needed) |
-| `infra-headers` | Security headers | Hosting config or `next.config` | Site or infra repo |
-| `infra-robots-sitemap` | Robots.txt & sitemap | `public/`, sitemap build | Site repo |
-| `infra-dns` | DNS | Registrar / DNS panel | Usually no PR |
-| `cms-content` | Content-backed SEO/a11y | CMS documents | CMS dataset (separate PR) |
-| `secrets` | Security (secrets) | Env vars, key rotation | Manual — not auto-fixed |
+Packages are emitted only when the run produces matching issues. Page-level packages contain only
+what remains **after** site-wide and template coverage is removed (no duplication), and only pages
+that returned HTTP 200 (non-200 URLs go to `REVIEW.md`).
 
-Stack detection sets `mcpServers`, `suggestedPaths`, and optional `stackPromptHints` on each
-package. See **Stack detection** above and [stack.md](./stack.md).
+| Package ID | Fix surface | Contents | Typical PR repo |
+| --- | --- | --- | --- |
+| `seo-site-wide` | repo | Metadata/social tags missing on every page | Site repo |
+| `seo-template-{name}` | repo | Metadata missing across one template | Site repo |
+| `seo-pages` | repo | Per-page markup gaps (e.g. `h1`, page-specific `canonical`) | Site repo |
+| `best-practices-site-wide` | repo | `<main>` landmark, `template` meta, robots — site-wide | Site repo |
+| `best-practices-template-{name}` | repo | Same, scoped to one template | Site repo |
+| `best-practices-pages` | repo | Per-page landmark / template / robots | Site repo |
+| `a11y-site-wide` / `a11y-template-{name}` | repo | Structural a11y across all/one template | Site repo |
+| `a11y-pages` | repo | Per-page structural a11y (heading order, lang, labels) | Site repo |
+| `cms-content` | cms | Editorial content (descriptions, image alt) — **only when a CMS is detected** | CMS dataset (approval-gated) |
+| `infra-headers` | hosting | Security headers | Site or infra repo |
+| `infra-robots-sitemap` | repo | Robots.txt & sitemap | Site repo |
+| `infra-redirect` | hosting | Domain redirect config | Hosting/infra |
+| `infra-dns` | dns | SPF/DMARC etc. | Registrar / DNS panel (manual) |
+| `secrets` | manual | Exposed secrets — key rotation | Manual — not auto-fixed |
+
+All page-level packages (`promptId`s `seo-page`, `best-practices-page`, `a11y-static`) carry granular
+issue ids (`empty-alt`, `heading-skip`, `h1`, …) so a fix maps back to a verifiable id. Stack
+detection sets `mcpServers` and `searchHints` per package. See **Stack detection** above.
 
 ---
 
@@ -204,13 +225,16 @@ Fields:
 
 ## Prompt composition
 
-Runtime prompt for a sub-agent:
+The shared base rules (`prompts/fix/_base.md`) are written **once** to `BASE.md` at the agent-jobs
+root. Each `prompt.md` references it rather than inlining ~120 lines, so per-package prompts stay
+small (a few KB instead of hundreds). A package `prompt.md` is:
 
 ```text
-prompts/fix/_base.md
-+ prompts/fix/{promptId}.md
+# Fix `{id}`  + "read ../BASE.md first"
++ prompts/fix/{promptId}.md          (domain guidance)
 + optional project override (.flightcheck/prompts/{promptId}.md in consuming repo)
-+ manifest work package slice (issues, paths, stack)
++ work package slice: issues (summarized; full list in package.json), search hints, stack,
+  references, runnable verify command
 ```
 
 Project-specific conventions (App Router `generateMetadata`, Sanity as OG source, etc.) belong in
@@ -272,8 +296,8 @@ Agents must fill every section:
 
 1. Check out this branch and run the site locally (or preview deploy).
 2. View source on the homepage — confirm OG and Twitter meta tags are present.
-3. Re-run flightcheck:
-   `pnpm run flightcheck -- https://example.com --checks crawl,analyze`
+3. Re-run flightcheck (from wherever flightcheck is installed — usually not a script in the site repo):
+   `npx @eightmedia/flightcheck https://example.com --checks crawl,analyze`
 4. Confirm **Issues summary → SEO** counts drop for the items above.
 
 ## Out of scope
@@ -313,18 +337,20 @@ workbench** — one subfolder per work package, one pull request each.
 ```text
 flightcheck crawl  →  analyze  →  *-fix-manifest.json
                               →  *-agent-jobs/
+                                   ├── BASE.md                  → shared rules (read once)
+                                   ├── PLAN.md                  → recommended order + dependencies
+                                   ├── REVIEW.md                → non-200 URLs to investigate, not fix
                                    ├── README.md
-                                   ├── seo-site-wide/prompt.md  → Cursor agent → PR 1
-                                   ├── infra-headers/prompt.md  → Cursor agent → PR 2
+                                   ├── seo-site-wide/prompt.md  → agent → PR 1
+                                   ├── infra-headers/prompt.md  → agent → PR 2
                                    └── infra-dns/MANUAL.md      → human
 ```
 
-Each `prompt.md` combines:
+Each `prompt.md` references `../BASE.md` and adds:
 
-- Base PR rules (`prompts/fix/_base.md`)
 - Domain guidance (`prompts/fix/{promptId}.md`)
 - Optional project override (`.flightcheck/prompts/{promptId}.md` in the site repo)
-- The work package issues, search hints, stack, and verify command
+- The work package issues (summarized; full list in `package.json`), search hints, stack, and verify command
 
 Pass `--repo <path>` on the main CLI to pick up project prompt overrides from
 `.flightcheck/prompts/` in the site repo.
@@ -345,9 +371,10 @@ Output defaults to `*-agent-jobs/` next to the manifest (e.g. `20260618.1413-eig
 ### Workflow for developers
 
 1. Run flightcheck on the site (`pnpm start https://www.example.com` or your usual command).
-2. Open `*-agent-jobs/README.md` and the site repo in Cursor.
-3. For each auto-fixable folder: new agent chat → paste `prompt.md` → review PR.
-4. Re-run flightcheck; repeat for remaining packages.
+2. Open the site repo in your agent tool; read `*-agent-jobs/BASE.md` once and `PLAN.md` for the order.
+3. Work packages in `PLAN.md` order (site-wide first): point the agent at a package folder, let it
+   read that folder's `prompt.md`, review the PR. Re-run flightcheck and regenerate before the next.
+4. Check `REVIEW.md` for crawled URLs that are not real pages — fix the links, don't add metadata.
 
 Manual packages (`autoFixable: false`) get `MANUAL.md` instead (DNS, secrets).
 

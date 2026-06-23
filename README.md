@@ -29,6 +29,7 @@ pnpm run analyze -- ./flightcheck/20260618.1413-eight.nl-raw.json
 
 - `docs/qc-checks-plan.md` — roadmap for full site QC checks
 - `docs/checks.md` — modular check API and extension guide
+- `docs/agent-fixes.md` — agent-jobs output (one PR per package) and prompt composition
 - `docs/crawler.md`
 - `docs/analyze.md`
 - `docs/stack.md`
