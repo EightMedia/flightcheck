@@ -83,6 +83,7 @@ describe("buildMarkdown template meta warnings", () => {
       "- [ ] Add template meta tag to site layout head — helps flightcheck give better tailored reports"
     );
     expect(markdown).toContain("- `missing template meta`: 2/2 pages (site-wide)");
+    expect(markdown).toContain("- Templates that need fixes: Unavailable, template meta missing");
     expect(markdown).not.toContain("Add template meta tag to page head");
   });
 
@@ -232,6 +233,7 @@ describe("buildMarkdown template todos", () => {
     );
 
     expect(markdown).not.toContain("## Fix in templates");
+    expect(markdown).toContain("- Templates that need fixes: Unavailable, template meta missing");
     expect(markdown).toContain("## Fix site-wide (all pages)");
   });
 

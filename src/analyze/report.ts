@@ -672,6 +672,20 @@ function buildCoverageSection(
   return lines;
 }
 
+function formatTemplatesThatNeedFixes(
+  templatesWithFixes: string[],
+  templateGroupCount: number,
+  totalPages: number
+): string {
+  if (templatesWithFixes.length > 0) {
+    return templatesWithFixes.map((template) => `\`${template}\``).join(", ");
+  }
+  if (totalPages > 0 && templateGroupCount === 0) {
+    return "Unavailable, template meta missing";
+  }
+  return "none";
+}
+
 function buildHowToUseSection(redirectOnly: boolean): string[] {
   const lines = ["## How to use this report", ""];
   if (redirectOnly) {
@@ -1038,7 +1052,7 @@ export async function buildMarkdown(
     `- Pages analyzed: ${totalPages}`,
     `- Pages with issues: ${pagesWithIssues}`,
     `- Site-wide fixes: ${siteWideFixTodos.length}`,
-    `- Templates that need fixes: ${templatesWithFixes.length > 0 ? templatesWithFixes.map((template) => `\`${template}\``).join(", ") : "none"}`,
+    `- Templates that need fixes: ${formatTemplatesThatNeedFixes(templatesWithFixes, templateGroups.size, totalPages)}`,
     `- Pages with page-specific fixes: ${pageSpecificCount}`,
     "",
     ...issuesSummarySection,
