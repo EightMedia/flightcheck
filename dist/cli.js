@@ -38,6 +38,7 @@ async function main() {
         .option("--only <groups>", "Run only these check groups (comma-separated): meta,icons,social,tracking,stack,security")
         .option("--skip <groups>", "Skip these check groups (comma-separated)")
         .option("--reveal-secrets", "Show full secret values instead of masked ones", false)
+        .option("--repo <path>", "Site repo path for agent prompt overrides (.flightcheck/prompts/)")
         .action(async (startUrl, opts) => {
         if (!isHttpUrl(startUrl)) {
             throw new Error("<start-url> must be a valid http(s) URL.");
@@ -77,6 +78,8 @@ async function main() {
             analyze: {
                 reportPath: reportPath ?? defaultPaths.reportMd,
                 errorsOnly,
+                siteUrl: normalizedStartUrl,
+                projectRepo: opts.repo,
             },
         });
         const crawlResult = outputs.crawl;
@@ -110,6 +113,11 @@ async function main() {
         }
         if (analyzeResult) {
             summary.report = analyzeResult.reportPath;
+            summary.manifest = analyzeResult.manifestPath;
+            summary.agentJobs = analyzeResult.agentJobsPath;
+            if (analyzeResult.agentJobs) {
+                summary.agentJobPackages = analyzeResult.agentJobs.autoFixableCount;
+            }
         }
         process.stdout.write(`${JSON.stringify(summary, null, 2)}\n`);
     });

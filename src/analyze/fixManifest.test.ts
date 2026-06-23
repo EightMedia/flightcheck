@@ -124,6 +124,76 @@ describe("buildFixManifest", () => {
     expect(templatePackage?.searchHints.some((hint) => /template meta value: work/i.test(hint))).toBe(true);
   });
 
+  it("does not repeat site-wide fields in the page-specific package (dedup)", async () => {
+    const manifest = await buildFixManifest("report.json", [
+      // colorScheme missing on every page => site-wide; metaDescription missing only on /b => page.
+      makeRecord({ url: "https://example.com/a", colorScheme: "" }),
+      makeRecord({ url: "https://example.com/b", colorScheme: "", metaDescription: "" }),
+    ]);
+
+    const seoPages = manifest.workPackages.find((pkg) => pkg.id === "seo-pages");
+    expect(seoPages?.issues.some((issue) => issue.id === "metaDescription")).toBe(true);
+    // colorScheme is handled site-wide and must not reappear per page.
+    expect(seoPages?.issues.some((issue) => issue.id === "colorScheme")).toBe(false);
+  });
+
+  it("routes non-200 crawl artifacts to reviewItems, not fix packages", async () => {
+    const manifest = await buildFixManifest("report.json", [
+      makeRecord({ url: "https://example.com/real", metaDescription: "" }),
+      makeRecord({
+        url: "https://example.com/wielrennen/jeugd@example.com",
+        status: 404,
+        error: "Not Found",
+      }),
+    ]);
+
+    const junkUrl = "https://example.com/wielrennen/jeugd@example.com";
+    expect(manifest.reviewItems.some((item) => item.url === junkUrl)).toBe(true);
+    // The 404 email URL must not generate "add metadata" todos anywhere.
+    const allIssueUrls = manifest.workPackages.flatMap((pkg) => pkg.issues.flatMap((issue) => issue.urls ?? []));
+    expect(allIssueUrls).not.toContain(junkUrl);
+  });
+
+  it("routes editorial content to a cms-content package when a CMS is detected", async () => {
+    const manifest = await buildFixManifest(
+      "report.json",
+      [
+        makeRecord({ url: "https://example.com/a" }),
+        makeRecord({
+          url: "https://example.com/b",
+          metaDescription: "",
+          images: { issues: [{ id: "empty-alt", severity: "warning", message: "Image has an empty alt attribute." }] },
+        }),
+      ],
+      {},
+      {
+        stackProfile: {
+          detections: [
+            {
+              name: "Sanity",
+              categories: ["CMS"],
+              confidence: "high",
+              evidence: ["cdn.sanity.io"],
+              pageCount: 2,
+            },
+          ],
+          tracking: { tagManager: [], analytics: [] },
+        },
+      }
+    );
+
+    const cms = manifest.workPackages.find((pkg) => pkg.id === "cms-content");
+    expect(cms).toBeDefined();
+    expect(cms?.fixSurface).toBe("cms");
+    expect(cms?.locationDiscovery).toBe("cms-studio");
+    expect(cms?.issues.some((issue) => issue.id === "metaDescription")).toBe(true);
+    // granular a11y id, not the old generic "page-a11y-todo"
+    expect(cms?.issues.some((issue) => issue.id === "empty-alt")).toBe(true);
+    // content was moved out of the repo seo-pages package (which may not exist at all now)
+    const seoPages = manifest.workPackages.find((pkg) => pkg.id === "seo-pages");
+    expect((seoPages?.issues ?? []).some((issue) => issue.id === "metaDescription")).toBe(false);
+  });
+
   it("marks secrets and DNS packages as not auto-fixable", async () => {
     const manifest = await buildFixManifest(
       "report.json",

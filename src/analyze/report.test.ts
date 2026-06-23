@@ -316,15 +316,16 @@ describe("buildMarkdown tier 1 infra sections", () => {
           detections: [
             {
               name: "Next.js",
-              categories: ["JavaScript frameworks"],
+              categories: ["Framework"],
               confidence: "high",
-              evidence: ["Next.js runtime markers in HTML"],
+              evidence: ["html: `data-next-head`"],
+              detector: "flightcheck-v1",
             },
           ],
         },
       }),
     ];
-    const stackProfile = await buildStackProfile(records, {
+    const stackProfile = buildStackProfile(records, {
       securityHeaders: {
         url: "https://example.com",
         headers: { "x-vercel-id": "iad1::abc" },
@@ -414,7 +415,7 @@ describe("buildMarkdown tier 1 crawl issues", () => {
               {
                 id: "missing-alt",
                 severity: "error",
-                message: "Image is missing an alt attribute. (hero.jpg)",
+                message: "Image is missing an alt attribute. ([hero.jpg](https://example.com/page/hero.jpg))",
               },
             ],
           },
@@ -425,7 +426,7 @@ describe("buildMarkdown tier 1 crawl issues", () => {
     );
 
     expect(markdown).toContain("### https://example.com/a");
-    expect(markdown).toContain("- [ ] Image is missing an alt attribute. (hero.jpg)");
+    expect(markdown).toContain("- [ ] Image is missing an alt attribute. ([hero.jpg](https://example.com/page/hero.jpg))");
     expect(markdown).toContain("- `missing image alt`: 1/2 pages (page-specific)");
   });
 

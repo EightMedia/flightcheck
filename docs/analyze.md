@@ -25,7 +25,8 @@ pnpm run analyze -- ./flightcheck/20260618.1413-eight.nl-raw.json --errors-only
 ```
 
 Zonder `--output` wordt het Markdown-bestand afgeleid van de input: `-raw.json` wordt
-`-report.md`. Dezelfde basename krijgt ook `-fix-manifest.json` voor agent-orchestratie.
+`-report.md`. Dezelfde basename krijgt ook `-fix-manifest.json` en `-agent-jobs/` voor
+agent-orchestratie (automatisch tijdens analyze).
 
 ## Output-structuur
 
@@ -150,7 +151,8 @@ Voorbeeld:
 Resterende issues per URL — meestal page-specific content. Site-wide en template-fixes worden
 hier niet herhaald. Bevat ook Tier 1 crawl-issues zoals ontbrekende image alt-teksten en
 statische a11y-hints wanneer de `images` of `a11y-static` crawl groups actief zijn.
-Image-alt issues tonen de bestandsnaam wanneer die uit `src`, `srcset` of `<picture>` te halen is.
+Image-alt issues tonen een klikbare markdown-link `[bestandsnaam](url)` wanneer de URL uit `src`,
+`srcset`, `<picture>` of Next.js `/_next/image?url=…` te halen is.
 
 ## Checks
 
@@ -211,4 +213,4 @@ await runAnalyzeCheck({
 ## AI agents
 
 Voor geautomatiseerde fixes via agents: zie [agent-fixes.md](./agent-fixes.md) (fix manifest,
-work packages, PR-conventies, `pnpm run orchestrate`, en `prompts/fix/`).
+`*-agent-jobs/` prompts, work packages, PR-conventies, en `prompts/fix/`).

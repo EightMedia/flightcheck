@@ -1,4 +1,4 @@
-import { detectStackFromDns, detectStackFromHeaders, detectStackFromRobots, loadTechnologyIndex, } from "../crawler/stack.js";
+import { detectStackFromDns, detectStackFromHeaders, detectStackFromRobots, } from "../crawler/stack.js";
 const TRACKING_PROVIDER_LABELS = {
     "google-tag-manager": "Google Tag Manager",
     "google-analytics-ga4": "Google Analytics (GA4)",
@@ -35,8 +35,19 @@ function aggregateTracking(records) {
         analytics: dedupeTracking(analytics),
     };
 }
+const STACK_CATEGORY_ORDER = ["Platform", "Framework", "CMS", "Search", "Hosting", "CDN", "Other"];
+function isCuratedStackDetection(detection) {
+    return detection.detector === "flightcheck-v1";
+}
+function filterCuratedDetections(detections) {
+    return detections.filter(isCuratedStackDetection);
+}
 function primaryCategory(detection) {
     return detection.categories[0] ?? "Other";
+}
+function categorySortKey(category) {
+    const index = STACK_CATEGORY_ORDER.indexOf(category);
+    return index === -1 ? STACK_CATEGORY_ORDER.length : index;
 }
 function aggregateDetections(pageDetections, originDetections) {
     const merged = new Map();
@@ -63,7 +74,7 @@ function aggregateDetections(pageDetections, originDetections) {
             existing.pages.add(pageUrl);
     };
     for (const { url, detections } of pageDetections) {
-        for (const detection of detections) {
+        for (const detection of filterCuratedDetections(detections)) {
             add(detection, url);
         }
     }
@@ -76,7 +87,7 @@ function aggregateDetections(pageDetections, originDetections) {
         pageCount: pages.size,
     }))
         .sort((a, b) => {
-        const categoryDiff = primaryCategory(a).localeCompare(primaryCategory(b));
+        const categoryDiff = categorySortKey(primaryCategory(a)) - categorySortKey(primaryCategory(b));
         if (categoryDiff !== 0)
             return categoryDiff;
         return a.name.localeCompare(b.name);
@@ -91,25 +102,24 @@ export function aggregateStackFromRecords(records) {
         tracking: aggregateTracking(records),
     };
 }
-export async function buildStackProfile(records, options = {}) {
-    await loadTechnologyIndex();
+export function buildStackProfile(records, options = {}) {
     const pageDetections = records
         .filter((record) => record.stack?.detections?.length)
         .map((record) => ({ url: record.url, detections: record.stack.detections }));
     const originDetections = [];
     if (options.securityHeaders) {
-        originDetections.push(...(await detectStackFromHeaders(options.securityHeaders.headers)));
+        originDetections.push(...detectStackFromHeaders(options.securityHeaders.headers));
     }
     if (options.dns) {
-        originDetections.push(...(await detectStackFromDns({
+        originDetections.push(...detectStackFromDns({
             cname: options.dns.records.cname,
             ns: options.dns.records.ns,
             mx: options.dns.records.mx,
             txt: options.dns.records.txt,
-        })));
+        }));
     }
     if (options.robotsTxt?.body) {
-        originDetections.push(...(await detectStackFromRobots(options.robotsTxt.body)));
+        originDetections.push(...detectStackFromRobots(options.robotsTxt.body));
     }
     return {
         detections: aggregateDetections(pageDetections, originDetections),
@@ -135,7 +145,7 @@ export function buildStackSection(profile, totalPages) {
             list.push(detection);
             byCategory.set(category, list);
         }
-        for (const [category, items] of [...byCategory.entries()].sort(([a], [b]) => a.localeCompare(b))) {
+        for (const [category, items] of [...byCategory.entries()].sort(([a], [b]) => categorySortKey(a) - categorySortKey(b))) {
             lines.push(`### ${category}`, "");
             for (const item of items) {
                 const scope = item.pageCount > 0

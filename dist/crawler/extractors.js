@@ -82,7 +82,7 @@ export function extractVerificationRecord(html, url, status, contentType, active
         result.tracking = extractTracking(html);
     }
     if (activeGroups.has("images")) {
-        result.images = { issues: extractImageIssues($) };
+        result.images = { issues: extractImageIssues($, url) };
     }
     if (activeGroups.has("a11y-static")) {
         result.a11yStatic = { issues: extractA11yStaticIssues($) };

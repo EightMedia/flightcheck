@@ -19,7 +19,12 @@ const BEST_PRACTICE_WARNING_KEYS = new Set([
     "main-multiple",
 ]);
 const STACK_SEARCH_HINTS = {
-    "Next.js": ["app/layout.tsx", "app/**/layout.tsx", "generateMetadata", "metadata export", "next/head", "lib/seo"],
+    "Next.js": [
+        "Detect the router: App Router (app/layout.tsx, generateMetadata, metadata export) vs Pages Router (pages/_app.tsx, pages/_document.tsx, next/head <Head>)",
+        "App Router: app/layout.tsx, app/**/layout.tsx, generateMetadata, metadata export",
+        "Pages Router: pages/_app.tsx, pages/_document.tsx, next/head, shared <Head>/Page wrapper component",
+        "lib/seo or central metadata helper",
+    ],
     Nuxt: ["app.vue", "nuxt.config", "useHead", "useSeoMeta"],
     Gatsby: ["gatsby-config", "gatsby-ssr", "react-helmet", "Seo component"],
     Astro: ["src/layouts", "src/components/Head", "astro.config"],
@@ -35,6 +40,53 @@ const STACK_MCP_SERVERS = {
     Sanity: "sanity",
     Contentful: "contentful",
 };
+const CMS_STACK_NAMES = new Set(["Sanity", "Contentful", "WordPress", "Strapi", "Prismic"]);
+/**
+ * SEO fields whose value is unambiguously editorial content (authored per page), not markup.
+ * When a CMS is detected these belong in a CMS-content package (authored with approval),
+ * not a repo code change. Deliberately conservative: title/metaTitle/og.title and h1 are usually
+ * *rendered by code* from a content field, so a missing one is often a template bug — those stay
+ * in the repo package where the agent can inspect the template and decide. Markup fields
+ * (canonical, og.url, colorScheme, twitter.card) also stay in the repo package.
+ */
+const CONTENT_SEO_FIELDS = new Set(["metaDescription", "og.description"]);
+const IMAGE_ALT_IDS = new Set(["missing-alt", "empty-alt", "generic-alt"]);
+function detectedCmsServer(profile) {
+    for (const detection of profile.detections) {
+        if (detection.confidence === "low")
+            continue;
+        if (CMS_STACK_NAMES.has(detection.name)) {
+            return STACK_MCP_SERVERS[detection.name] ?? detection.name.toLowerCase();
+        }
+    }
+    return null;
+}
+/** Heuristic: a non-200 URL that looks like crawler junk rather than a real page. */
+function reviewReason(url, status) {
+    if (status === 200)
+        return null;
+    const decoded = (() => {
+        try {
+            return decodeURIComponent(url);
+        }
+        catch {
+            return url;
+        }
+    })();
+    if (/@/.test(decoded))
+        return "URL contains an email address — likely a mis-parsed link, not a page";
+    if (/\[[^\]]+\]/.test(decoded))
+        return "URL contains a dynamic-route placeholder (e.g. [slug]) — not a real page";
+    if (/(?:\d[\s-]*){6,}/.test(decoded))
+        return "URL looks like a phone number crawled as a path";
+    if (status === null)
+        return "Page could not be fetched (error)";
+    if (status === 404)
+        return "Page returned 404 — broken or non-existent route";
+    if (status === 401 || status === 403)
+        return "Page returned auth error — likely a protected endpoint, not a public page";
+    return `Page returned status ${status} — investigate before adding metadata`;
+}
 const REPO_SEARCH_BASE = [
     "Search the codebase for the root layout, shared head, or site-wide metadata configuration",
     "Search for generateMetadata, default metadata exports, shared SEO helpers, or <Head> usage",
@@ -48,9 +100,6 @@ const PAGE_SEARCH_BASE = [
     "Search for the route file or page component matching each URL path",
     "Prefer the project's existing page-level metadata and content patterns",
 ];
-function stripTodoMarkdown(todo) {
-    return todo.replace(/^- \[ \] (\*\*[A-Z]+\*\* )?/, "").trim();
-}
 function formatScope(count, total) {
     if (total === 0)
         return "n/a";
@@ -161,43 +210,57 @@ function buildRepoPackage(options) {
         autoFixable: true,
     };
 }
-function collectPageIssues(pageFixes, kind) {
+/**
+ * Page-specific SEO issues, deduped against site-wide/template coverage (uses remainingFields,
+ * not raw missingFields — so canonical/og.url already fixed site-wide do not reappear here).
+ * `fieldFilter` selects markup fields (repo) vs content fields (CMS).
+ */
+function collectPageSeoIssues(pageFixes, fieldFilter) {
     const issues = [];
-    for (const { item, remainingTodos } of pageFixes) {
-        if (kind === "seo") {
-            for (const field of item.missingFields) {
-                issues.push({
-                    id: field,
-                    severity: "error",
-                    scope: "page-specific",
-                    todo: `Missing ${field}`,
-                    urls: [item.url],
-                });
-            }
+    for (const { item, remainingFields } of pageFixes) {
+        for (const field of remainingFields.filter(fieldFilter)) {
+            issues.push({
+                id: field,
+                severity: "error",
+                scope: "page-specific",
+                todo: `Missing ${field}`,
+                urls: [item.url],
+            });
         }
-        if (kind === "best-practices") {
-            for (const key of item.warningKeys.filter((entry) => BEST_PRACTICE_WARNING_KEYS.has(entry))) {
-                issues.push({
-                    id: key,
-                    severity: "warning",
-                    scope: "page-specific",
-                    todo: `Fix ${key} on page`,
-                    urls: [item.url],
-                });
-            }
+    }
+    return issues;
+}
+/** Page-specific best-practice issues (template meta, robots, landmarks), deduped. */
+function collectPageBestPracticeIssues(pageFixes) {
+    const issues = [];
+    for (const { item, remainingWarningKeys } of pageFixes) {
+        for (const key of remainingWarningKeys.filter((entry) => BEST_PRACTICE_WARNING_KEYS.has(entry))) {
+            issues.push({
+                id: key,
+                severity: key === "noindex" || key === "nofollow" ? "warning" : "review",
+                scope: "page-specific",
+                todo: `Fix ${key} on page`,
+                urls: [item.url],
+            });
         }
-        if (kind === "a11y") {
-            for (const todo of remainingTodos) {
-                if (/alt|landmark|heading|label|tabindex|lang|a11y|main/i.test(todo)) {
-                    issues.push({
-                        id: "page-a11y-todo",
-                        severity: "warning",
-                        scope: "page-specific",
-                        todo: stripTodoMarkdown(todo),
-                        urls: [item.url],
-                    });
-                }
-            }
+    }
+    return issues;
+}
+/**
+ * Page-specific a11y issues with granular IDs (empty-alt, heading-skip, …), deduped.
+ * `idFilter` selects image-alt issues (CMS content) vs structural a11y (repo).
+ */
+function collectPageA11yIssues(pageFixes, idFilter) {
+    const issues = [];
+    for (const { item, remainingA11yIssues } of pageFixes) {
+        for (const issue of remainingA11yIssues.filter((entry) => idFilter(entry.id))) {
+            issues.push({
+                id: issue.id,
+                severity: "warning",
+                scope: "page-specific",
+                todo: issue.message,
+                urls: [item.url],
+            });
         }
     }
     return issues;
@@ -341,7 +404,16 @@ function buildWorkPackages(analysis, tier1, stackProfile) {
         }));
     }
     if (!redirectOnly) {
-        const pageSeo = collectPageIssues(analysis.pageFixes, "seo");
+        // Only generate fix todos for pages that actually exist (HTTP 200). Non-200 URLs
+        // (404 emails/phone numbers, dynamic-route placeholders, protected endpoints) are
+        // crawler artifacts — they go to reviewItems instead of getting "add metadata" todos.
+        const actionablePageFixes = analysis.pageFixes.filter((fix) => fix.item.status === 200);
+        const cmsServer = detectedCmsServer(stackProfile);
+        const isContentField = (field) => CONTENT_SEO_FIELDS.has(field);
+        const isImageAlt = (id) => IMAGE_ALT_IDS.has(id);
+        // Repo (markup) SEO fields — when no CMS, content fields fall through here too.
+        const seoRepoFilter = cmsServer ? (field) => !isContentField(field) : () => true;
+        const pageSeo = collectPageSeoIssues(actionablePageFixes, seoRepoFilter);
         if (pageSeo.length > 0) {
             packages.push(buildRepoPackage({
                 id: "seo-pages",
@@ -353,7 +425,7 @@ function buildWorkPackages(analysis, tier1, stackProfile) {
                 prTitle: "fix(seo): resolve page-specific metadata issues",
             }));
         }
-        const pageBest = collectPageIssues(analysis.pageFixes, "best-practices");
+        const pageBest = collectPageBestPracticeIssues(actionablePageFixes);
         if (pageBest.length > 0) {
             packages.push(buildRepoPackage({
                 id: "best-practices-pages",
@@ -361,11 +433,14 @@ function buildWorkPackages(analysis, tier1, stackProfile) {
                 priority: 31,
                 scope: "page-specific",
                 issues: pageBest,
-                searchHints: PAGE_SEARCH_BASE,
+                searchHints: [...PAGE_SEARCH_BASE, "main landmark", "<main>", 'meta name="template"', "robots meta"],
                 prTitle: "fix: resolve page-specific best-practice issues",
             }));
         }
-        const pageA11y = collectPageIssues(analysis.pageFixes, "a11y");
+        // Structural a11y (heading order, lang, labels) is always a repo fix. Image alt is
+        // routed to the CMS-content package when a CMS owns the images.
+        const a11yRepoFilter = cmsServer ? (id) => !isImageAlt(id) : () => true;
+        const pageA11y = collectPageA11yIssues(actionablePageFixes, a11yRepoFilter);
         if (pageA11y.length > 0) {
             packages.push(buildRepoPackage({
                 id: "a11y-pages",
@@ -373,10 +448,36 @@ function buildWorkPackages(analysis, tier1, stackProfile) {
                 priority: 32,
                 scope: "page-specific",
                 issues: pageA11y,
-                searchHints: [...PAGE_SEARCH_BASE, "image alt", "Sanity image", "cms"],
-                mcpServers: mcpServersForStack(stackProfile, ["Sanity"]),
+                searchHints: [...PAGE_SEARCH_BASE, "heading order", "html lang", "form labels"],
                 prTitle: "fix(a11y): resolve page-specific accessibility issues",
             }));
+        }
+        // CMS-content package: editorial fields (descriptions, alt text) authored per page.
+        // Gated by the base prompt's CMS approval flow — never written silently.
+        if (cmsServer) {
+            const contentIssues = [
+                ...collectPageSeoIssues(actionablePageFixes, isContentField),
+                ...collectPageA11yIssues(actionablePageFixes, isImageAlt),
+            ];
+            if (contentIssues.length > 0) {
+                packages.push({
+                    id: "cms-content",
+                    promptId: "cms-content",
+                    fixSurface: "cms",
+                    priority: 33,
+                    scope: "page-specific",
+                    issues: contentIssues,
+                    locationDiscovery: "cms-studio",
+                    searchHints: [
+                        `Inspect the ${cmsServer} dataset/schema for the documents behind each URL`,
+                        "Identify the fields backing meta description, social description, and image alt text",
+                        "Propose values and get user approval before any CMS write (see base instructions)",
+                    ],
+                    mcpServers: mcpServersForStack(stackProfile, []),
+                    prTitle: "chore(cms): author missing descriptions and image alt text",
+                    autoFixable: true,
+                });
+            }
         }
     }
     if (tier1.securityHeaders && tier1.securityHeaders.issues.length > 0) {
@@ -441,6 +542,14 @@ export async function buildFixManifest(sourcePath, records, tier1 = {}, options 
         stackProfile: options.stackProfile,
     });
     const reportPath = options.reportPath ?? defaultReportPathForInput(sourcePath);
+    const reviewItems = [];
+    if (!analysis.redirectOnly) {
+        for (const fix of analysis.pageFixes) {
+            const reason = reviewReason(fix.item.url, fix.item.status);
+            if (reason)
+                reviewItems.push({ url: fix.item.url, status: fix.item.status, reason });
+        }
+    }
     return {
         version: FIX_MANIFEST_VERSION,
         generatedAt: new Date().toISOString(),
@@ -449,6 +558,7 @@ export async function buildFixManifest(sourcePath, records, tier1 = {}, options 
         redirectOnly: analysis.redirectOnly,
         stack: stackManifestEntries(analysis.stackProfile, analysis.totalPages),
         workPackages: buildWorkPackages(analysis, tier1, analysis.stackProfile),
+        reviewItems,
     };
 }
 export { defaultManifestPathForInput };

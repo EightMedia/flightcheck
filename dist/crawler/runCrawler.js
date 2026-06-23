@@ -28,10 +28,6 @@ export async function runCrawler(options) {
     }
     const activeGroups = options.activeGroups ?? new Set(CHECK_GROUPS);
     const revealSecrets = options.revealSecrets ?? false;
-    if (activeGroups.has("stack")) {
-        const { loadTechnologyIndex } = await import("./stack.js");
-        await loadTechnologyIndex();
-    }
     const jsScanCache = new Map();
     const failedAssets = new Set();
     const fetchText = async (assetUrl) => {
@@ -136,7 +132,7 @@ export async function runCrawler(options) {
             const effectiveContentType = contentType?.type ?? "";
             const record = extractVerificationRecord(html, currentUrl, status, effectiveContentType, activeGroups);
             if (activeGroups.has("stack") && effectiveContentType.includes("text/html") && html) {
-                record.stack = { detections: await detectStackFromHtml(html, currentUrl) };
+                record.stack = { detections: detectStackFromHtml(html, currentUrl) };
             }
             if (activeGroups.has("security") && effectiveContentType.includes("text/html") && html) {
                 record.security = await scanSecurity(html, currentUrl);

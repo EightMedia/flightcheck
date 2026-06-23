@@ -28,6 +28,8 @@ async function main() {
             input: basename(result.inputPath),
             output: result.reportPath,
             manifest: result.manifestPath,
+            agentJobs: result.agentJobsPath,
+            agentJobPackages: result.agentJobs?.autoFixableCount,
             pagesAnalyzed: result.pagesAnalyzed,
         }, null, 2)}\n`);
     });

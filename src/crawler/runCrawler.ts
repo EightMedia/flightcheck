@@ -54,10 +54,6 @@ export async function runCrawler(options: RunCrawlerOptions): Promise<{ records:
   }
   const activeGroups = options.activeGroups ?? new Set<CheckGroup>(CHECK_GROUPS);
   const revealSecrets = options.revealSecrets ?? false;
-  if (activeGroups.has("stack")) {
-    const { loadTechnologyIndex } = await import("./stack.js");
-    await loadTechnologyIndex();
-  }
   const jsScanCache = new Map<string, SecretFinding[]>();
   const failedAssets = new Set<string>();
 
@@ -168,7 +164,7 @@ export async function runCrawler(options: RunCrawlerOptions): Promise<{ records:
 
       const record = extractVerificationRecord(html, currentUrl, status, effectiveContentType, activeGroups);
       if (activeGroups.has("stack") && effectiveContentType.includes("text/html") && html) {
-        record.stack = { detections: await detectStackFromHtml(html, currentUrl) };
+        record.stack = { detections: detectStackFromHtml(html, currentUrl) };
       }
       if (activeGroups.has("security") && effectiveContentType.includes("text/html") && html) {
         record.security = await scanSecurity(html, currentUrl);

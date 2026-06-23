@@ -3,6 +3,11 @@ import type { CrawlIssue } from "./schema.js";
 
 type CheerioSelection = ReturnType<CheerioAPI>;
 
+type ImageReference = {
+  filename: string;
+  url: string;
+};
+
 function crawlIssue(id: string, severity: CrawlIssue["severity"], message: string): CrawlIssue {
   return { id, severity, message };
 }
@@ -28,21 +33,50 @@ const GENERIC_ALT = new Set(["image", "photo", "picture", "img", "logo", "icon"]
 const IMAGE_EXTENSION_RE = /\.(?:jpe?g|png|gif|webp|avif|svg)$/i;
 const IMAGE_FILENAME_IN_TEXT_RE = /([^\/?#\s&,=]+\.(?:jpe?g|png|gif|webp|avif|svg))/gi;
 
+function tryDecodeURIComponent(value: string): string {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
+}
+
+function looksUrlEncoded(value: string): boolean {
+  return /%[0-9a-f]{2}/i.test(value);
+}
+
+function extractProxyImageUrl(value: string): string | null {
+  if (!/[?&]url=/i.test(value)) return null;
+  const match = value.match(/[?&]url=([^&]+)/i);
+  if (!match?.[1]) return null;
+  return tryDecodeURIComponent(match[1]);
+}
+
 function isValidImageFilename(filename: string): boolean {
   if (!filename || filename.includes("&") || filename.includes("=")) return false;
+  if (filename.includes("%") || filename.includes("://")) return false;
   if (!IMAGE_EXTENSION_RE.test(filename)) return false;
   return !/^\d+$/.test(filename.replace(IMAGE_EXTENSION_RE, ""));
 }
 
 function filenameFromUrl(url: string): string | null {
-  const trimmed = url.trim();
-  if (!trimmed || trimmed.startsWith("data:") || trimmed.startsWith("blob:")) return null;
+  let working = url.trim();
+  if (!working || working.startsWith("data:") || working.startsWith("blob:")) return null;
+
+  if (looksUrlEncoded(working)) {
+    working = tryDecodeURIComponent(working);
+  }
+
+  const proxyUrl = extractProxyImageUrl(working);
+  if (proxyUrl) {
+    working = proxyUrl;
+  }
 
   let pathname: string;
   try {
-    pathname = trimmed.includes("://") ? new URL(trimmed).pathname : trimmed.split(/[?#]/)[0] ?? "";
+    pathname = working.includes("://") ? new URL(working).pathname : working.split(/[?#]/)[0] ?? "";
   } catch {
-    pathname = trimmed.split(/[?#]/)[0] ?? "";
+    pathname = working.split(/[?#]/)[0] ?? "";
   }
 
   const filename = pathname.split("/").filter(Boolean).pop() ?? "";
@@ -52,32 +86,71 @@ function filenameFromUrl(url: string): string | null {
 function filenamesInText(text: string): string[] {
   const seen = new Set<string>();
   const filenames: string[] = [];
+  const decoded = looksUrlEncoded(text) ? tryDecodeURIComponent(text) : text;
 
-  for (const match of text.matchAll(IMAGE_FILENAME_IN_TEXT_RE)) {
-    const filename = match[1];
-    if (!isValidImageFilename(filename) || seen.has(filename)) continue;
-    seen.add(filename);
-    filenames.push(filename);
+  for (const source of [text, decoded]) {
+    for (const match of source.matchAll(IMAGE_FILENAME_IN_TEXT_RE)) {
+      const filename = match[1];
+      if (!isValidImageFilename(filename) || seen.has(filename)) continue;
+      seen.add(filename);
+      filenames.push(filename);
+    }
   }
 
   return filenames;
 }
 
-function filenameFromAttributeValue(value: string): string | null {
+function srcsetCandidates(srcset: string): string[] {
+  return srcset
+    .split(/,\s*(?=(?:https?:)?\/)/i)
+    .map((entry) => entry.trim().split(/\s+/)[0] ?? "")
+    .filter(Boolean);
+}
+
+function imageReferenceFromValue(value: string, pageUrl: string): ImageReference | null {
   const trimmed = value.trim();
   if (!trimmed) return null;
 
-  let decoded = trimmed;
-  try {
-    decoded = decodeURIComponent(trimmed);
-  } catch {
-    // keep original value
+  const candidates = /\d+w|\d+x/i.test(trimmed) ? srcsetCandidates(trimmed) : [trimmed];
+
+  for (const candidate of candidates) {
+    const decoded = tryDecodeURIComponent(candidate);
+    const proxyUrl = extractProxyImageUrl(candidate) ?? extractProxyImageUrl(decoded);
+    const lookups = [proxyUrl, decoded, candidate].filter((entry): entry is string => Boolean(entry));
+
+    for (const lookup of lookups) {
+      const filename = filenameFromUrl(lookup) ?? filenamesInText(lookup)[0];
+      if (!filename) continue;
+      const url = toAbsoluteImageUrl(lookup, pageUrl);
+      if (!url) continue;
+      return { filename, url };
+    }
   }
 
-  return filenameFromUrl(trimmed) ?? filenameFromUrl(decoded) ?? filenamesInText(trimmed)[0] ?? filenamesInText(decoded)[0] ?? null;
+  return null;
 }
 
-function collectImageFilename($: CheerioAPI, $img: CheerioSelection): string | null {
+function toAbsoluteImageUrl(value: string, pageUrl: string): string | null {
+  let working = value.trim();
+  if (!working || working.startsWith("data:") || working.startsWith("blob:")) return null;
+
+  if (looksUrlEncoded(working)) {
+    working = tryDecodeURIComponent(working);
+  }
+
+  const proxyUrl = extractProxyImageUrl(working);
+  if (proxyUrl) {
+    working = proxyUrl;
+  }
+
+  try {
+    return working.includes("://") ? new URL(working).href : new URL(working, pageUrl).href;
+  } catch {
+    return null;
+  }
+}
+
+function collectImageReference($: CheerioAPI, $img: CheerioSelection, pageUrl: string): ImageReference | null {
   const candidates: string[] = [];
 
   const src = ($img.attr("src") ?? "").trim();
@@ -98,15 +171,16 @@ function collectImageFilename($: CheerioAPI, $img: CheerioSelection): string | n
   }
 
   for (const candidate of candidates) {
-    const filename = filenameFromAttributeValue(candidate);
-    if (filename) return filename;
+    const reference = imageReferenceFromValue(candidate, pageUrl);
+    if (reference) return reference;
   }
 
   return null;
 }
 
-function imageIssueMessage(base: string, filename: string | null): string {
-  return filename ? `${base} (${filename})` : base;
+function imageIssueMessage(base: string, reference: ImageReference | null): string {
+  if (!reference) return base;
+  return `${base} ([${reference.filename}](${reference.url}))`;
 }
 
 function isGenericAlt(alt: string, src: string): boolean {
@@ -119,7 +193,7 @@ function isGenericAlt(alt: string, src: string): boolean {
   return basename.length > 0 && normalized === basename;
 }
 
-export function extractImageIssues($: CheerioAPI): CrawlIssue[] {
+export function extractImageIssues($: CheerioAPI, pageUrl: string): CrawlIssue[] {
   const issues: CrawlIssue[] = [];
 
   $("img").each((_, element) => {
@@ -127,27 +201,27 @@ export function extractImageIssues($: CheerioAPI): CrawlIssue[] {
     if (isDecorativeImage($img)) return;
 
     const src = ($img.attr("src") ?? "").trim();
-    const filename = collectImageFilename($, $img);
+    const reference = collectImageReference($, $img, pageUrl);
     const hasAlt = $img.get(0)?.attribs && Object.prototype.hasOwnProperty.call($img.get(0)!.attribs, "alt");
     const alt = ($img.attr("alt") ?? "").trim();
 
     if (!hasAlt) {
       issues.push(
-        crawlIssue("missing-alt", "error", imageIssueMessage("Image is missing an alt attribute.", filename))
+        crawlIssue("missing-alt", "error", imageIssueMessage("Image is missing an alt attribute.", reference))
       );
       return;
     }
 
     if (alt.length === 0) {
       issues.push(
-        crawlIssue("empty-alt", "warning", imageIssueMessage("Image has an empty alt attribute.", filename))
+        crawlIssue("empty-alt", "warning", imageIssueMessage("Image has an empty alt attribute.", reference))
       );
       return;
     }
 
     if (isGenericAlt(alt, src)) {
       issues.push(
-        crawlIssue("generic-alt", "warning", imageIssueMessage("Image uses generic alt text.", filename))
+        crawlIssue("generic-alt", "warning", imageIssueMessage("Image uses generic alt text.", reference))
       );
     }
   });

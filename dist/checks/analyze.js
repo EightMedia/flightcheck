@@ -2,8 +2,9 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { buildMarkdown, parseReport } from "../analyze/report.js";
 import { buildStackProfile } from "../analyze/stack.js";
-import { defaultReportPathForInput, defaultManifestPathForInput } from "../crawler/outputPaths.js";
+import { defaultReportPathForInput, defaultManifestPathForInput, defaultAgentJobsPathForInput } from "../crawler/outputPaths.js";
 import { buildFixManifest } from "../analyze/fixManifest.js";
+import { writeAgentJobs } from "../orchestrate/writeAgentJobs.js";
 function loadRecords(options) {
     if (options.records !== undefined) {
         return {
@@ -22,14 +23,20 @@ function loadRecords(options) {
         inputPath,
     };
 }
+function resolveSiteUrl(options, records) {
+    if (options.siteUrl)
+        return options.siteUrl;
+    return records[0]?.url;
+}
 export async function runAnalyzeCheck(options) {
     const { records, inputPath } = loadRecords(options);
     const reportPath = resolve(options.reportPath ?? defaultReportPathForInput(inputPath));
     const manifestPath = resolve(options.manifestPath ?? defaultManifestPathForInput(inputPath));
+    const agentJobsPath = resolve(options.agentJobsPath ?? defaultAgentJobsPathForInput(inputPath));
     const redirectOnly = options.redirectOnly ?? false;
     const stackProfile = redirectOnly
         ? { detections: [], tracking: { tagManager: [], analytics: [] } }
-        : await buildStackProfile(records, {
+        : buildStackProfile(records, {
             securityHeaders: options.tier1?.securityHeaders,
             dns: options.tier1?.dns,
             robotsTxt: options.tier1?.robotsTxt,
@@ -51,10 +58,21 @@ export async function runAnalyzeCheck(options) {
         mkdirSync(dirname(manifestPath), { recursive: true });
         writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
     }
+    let agentJobs;
+    if (options.writeAgentJobs !== false && options.writeManifest !== false) {
+        agentJobs = writeAgentJobs(manifest, {
+            manifestPath,
+            outputDir: agentJobsPath,
+            projectRepo: options.projectRepo,
+            siteUrl: resolveSiteUrl(options, records),
+        });
+    }
     return {
         inputPath,
         reportPath,
         manifestPath,
+        agentJobsPath: agentJobs?.outputDir ?? agentJobsPath,
+        agentJobs,
         markdown,
         manifest,
         pagesAnalyzed: records.length,

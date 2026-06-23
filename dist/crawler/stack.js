@@ -1,1 +1,1 @@
-export { detectStackFromDns, detectStackFromHeaders, detectStackFromHtml, detectStackFromRobots, loadTechnologyIndex, } from "./webappanalyzer/detect.js";
+export { CURATED_STACK_NAMES, detectStackFromDns, detectStackFromHeaders, detectStackFromHtml, detectStackFromRobots, isCuratedStackName, } from "./stackDetect.js";

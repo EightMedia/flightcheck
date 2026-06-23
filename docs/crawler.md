@@ -69,7 +69,7 @@ De extractie is opgedeeld in benoemde groepen. Standaard draaien alle groepen; m
 - `icons` — favicon en icons.
 - `social` — Open Graph en Twitter metadata.
 - `tracking` — GTM, GA4, UA, Matomo, Facebook Pixel, Plausible.
-- `stack` — technology fingerprints via [enthec/webappanalyzer](https://github.com/enthec/webappanalyzer) (see [stack.md](./stack.md)).
+- `stack` — technology fingerprints via curated rules (see [stack.md](./stack.md)).
 - `security` — scan op gelekte API-keys en secrets (zie hieronder).
 
 ### Sitemap parsing

@@ -31,6 +31,7 @@ const stackDetectionSchema = z.object({
     evidence: z.array(z.string()),
     website: z.string().optional(),
     version: z.string().optional(),
+    detector: z.literal("flightcheck-v1").optional(),
 });
 const recordSchema = z.object({
     url: z.string(),
@@ -453,6 +454,28 @@ function buildRemainingPageTodos(item, coveredFields, coveredWarningKeys, covere
     todos.push(...buildImageIssueTodos(uncoveredImageIssues));
     return todos;
 }
+/**
+ * Structured counterpart to buildRemainingPageTodos: returns the open issues for a page
+ * after site-wide and template coverage is removed, split by surface so the manifest can
+ * route them to the right work package (SEO markup vs best-practice vs a11y/content).
+ * Landmarks stay in warningKeys (owned by best-practices) so they are not double-counted in a11y.
+ */
+function buildRemainingPageData(item, coveredFields, coveredWarningKeys, coveredTier1Keys) {
+    const remainingFields = item.missingFields.filter((field) => !coveredFields.has(field));
+    const remainingWarningKeys = item.warningKeys.filter((key) => !coveredWarningKeys.has(key));
+    const remainingTier1Keys = item.tier1IssueKeys.filter((key) => !coveredTier1Keys.has(key));
+    const remainingNonImageTier1Keys = remainingTier1Keys.filter((key) => !IMAGE_TIER1_IDS.has(key));
+    const remainingA11yIssues = [];
+    for (const key of remainingNonImageTier1Keys) {
+        const message = TIER1_SCOPE_TODOS[key]?.page;
+        if (message)
+            remainingA11yIssues.push({ id: key, message });
+    }
+    for (const issue of item.imageIssues.filter((entry) => !coveredTier1Keys.has(entry.id))) {
+        remainingA11yIssues.push({ id: issue.id, message: issue.message });
+    }
+    return { remainingFields, remainingWarningKeys, remainingA11yIssues };
+}
 function collectTier1IssueKeys(record) {
     const issues = [...(record.images?.issues ?? []), ...(record.a11yStatic?.issues ?? [])];
     return [...new Set(issues.map((entry) => entry.id))];
@@ -649,10 +672,11 @@ export async function buildReportAnalysis(records, tier1 = {}, options = {}) {
         const coveredWarningKeys = coveredWarningKeysByTemplate.get(item.template) ?? siteWideWarningKeys;
         const coveredTier1Keys = coveredTier1KeysByTemplate.get(item.template) ?? siteWideTier1Keys;
         const remainingTodos = buildRemainingPageTodos(item, coveredFields, coveredWarningKeys, coveredTier1Keys);
+        const { remainingFields, remainingWarningKeys, remainingA11yIssues } = buildRemainingPageData(item, coveredFields, coveredWarningKeys, coveredTier1Keys);
         const hasSecrets = records.some((record) => record.url === item.url && (record.security?.secrets.length ?? 0) > 0);
         if (remainingTodos.length === 0 && !hasSecrets)
             continue;
-        pageFixes.push({ item, remainingTodos });
+        pageFixes.push({ item, remainingTodos, remainingFields, remainingWarningKeys, remainingA11yIssues });
     }
     const securityPages = records
         .map((record) => ({ url: record.url, secrets: record.security?.secrets ?? [] }))

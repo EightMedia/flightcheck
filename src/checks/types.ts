@@ -44,6 +44,8 @@ export type AnalyzeCheckResult = {
   inputPath: string;
   reportPath: string;
   manifestPath: string;
+  agentJobsPath: string;
+  agentJobs?: import("../orchestrate/writeAgentJobs.js").AgentJobSummary;
   markdown: string;
   manifest: import("../analyze/fixManifest.js").FixManifest;
   pagesAnalyzed: number;

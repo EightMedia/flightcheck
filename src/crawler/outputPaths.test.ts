@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildDefaultOutputPaths,
+  defaultAgentJobsPathForInput,
   defaultManifestPathForInput,
   defaultReportPathForInput,
   formatRunTimestamp,
@@ -49,6 +50,20 @@ describe("defaultManifestPathForInput", () => {
   it("replaces -raw.json suffix", () => {
     expect(defaultManifestPathForInput("./flightcheck/20260618.1413-eight.nl-raw.json")).toBe(
       "./flightcheck/20260618.1413-eight.nl-fix-manifest.json"
+    );
+  });
+});
+
+describe("defaultAgentJobsPathForInput", () => {
+  it("replaces -raw.json suffix", () => {
+    expect(defaultAgentJobsPathForInput("./flightcheck/20260618.1413-eight.nl-raw.json")).toBe(
+      "./flightcheck/20260618.1413-eight.nl-agent-jobs"
+    );
+  });
+
+  it("replaces -fix-manifest.json suffix", () => {
+    expect(defaultAgentJobsPathForInput("./flightcheck/20260618.1413-eight.nl-fix-manifest.json")).toBe(
+      "./flightcheck/20260618.1413-eight.nl-agent-jobs"
     );
   });
 });

@@ -21,23 +21,51 @@ function isDecorativeImage($img) {
 const GENERIC_ALT = new Set(["image", "photo", "picture", "img", "logo", "icon"]);
 const IMAGE_EXTENSION_RE = /\.(?:jpe?g|png|gif|webp|avif|svg)$/i;
 const IMAGE_FILENAME_IN_TEXT_RE = /([^\/?#\s&,=]+\.(?:jpe?g|png|gif|webp|avif|svg))/gi;
+function tryDecodeURIComponent(value) {
+    try {
+        return decodeURIComponent(value);
+    }
+    catch {
+        return value;
+    }
+}
+function looksUrlEncoded(value) {
+    return /%[0-9a-f]{2}/i.test(value);
+}
+function extractProxyImageUrl(value) {
+    if (!/[?&]url=/i.test(value))
+        return null;
+    const match = value.match(/[?&]url=([^&]+)/i);
+    if (!match?.[1])
+        return null;
+    return tryDecodeURIComponent(match[1]);
+}
 function isValidImageFilename(filename) {
     if (!filename || filename.includes("&") || filename.includes("="))
+        return false;
+    if (filename.includes("%") || filename.includes("://"))
         return false;
     if (!IMAGE_EXTENSION_RE.test(filename))
         return false;
     return !/^\d+$/.test(filename.replace(IMAGE_EXTENSION_RE, ""));
 }
 function filenameFromUrl(url) {
-    const trimmed = url.trim();
-    if (!trimmed || trimmed.startsWith("data:") || trimmed.startsWith("blob:"))
+    let working = url.trim();
+    if (!working || working.startsWith("data:") || working.startsWith("blob:"))
         return null;
+    if (looksUrlEncoded(working)) {
+        working = tryDecodeURIComponent(working);
+    }
+    const proxyUrl = extractProxyImageUrl(working);
+    if (proxyUrl) {
+        working = proxyUrl;
+    }
     let pathname;
     try {
-        pathname = trimmed.includes("://") ? new URL(trimmed).pathname : trimmed.split(/[?#]/)[0] ?? "";
+        pathname = working.includes("://") ? new URL(working).pathname : working.split(/[?#]/)[0] ?? "";
     }
     catch {
-        pathname = trimmed.split(/[?#]/)[0] ?? "";
+        pathname = working.split(/[?#]/)[0] ?? "";
     }
     const filename = pathname.split("/").filter(Boolean).pop() ?? "";
     return isValidImageFilename(filename) ? filename : null;
@@ -45,29 +73,64 @@ function filenameFromUrl(url) {
 function filenamesInText(text) {
     const seen = new Set();
     const filenames = [];
-    for (const match of text.matchAll(IMAGE_FILENAME_IN_TEXT_RE)) {
-        const filename = match[1];
-        if (!isValidImageFilename(filename) || seen.has(filename))
-            continue;
-        seen.add(filename);
-        filenames.push(filename);
+    const decoded = looksUrlEncoded(text) ? tryDecodeURIComponent(text) : text;
+    for (const source of [text, decoded]) {
+        for (const match of source.matchAll(IMAGE_FILENAME_IN_TEXT_RE)) {
+            const filename = match[1];
+            if (!isValidImageFilename(filename) || seen.has(filename))
+                continue;
+            seen.add(filename);
+            filenames.push(filename);
+        }
     }
     return filenames;
 }
-function filenameFromAttributeValue(value) {
+function srcsetCandidates(srcset) {
+    return srcset
+        .split(/,\s*(?=(?:https?:)?\/)/i)
+        .map((entry) => entry.trim().split(/\s+/)[0] ?? "")
+        .filter(Boolean);
+}
+function imageReferenceFromValue(value, pageUrl) {
     const trimmed = value.trim();
     if (!trimmed)
         return null;
-    let decoded = trimmed;
+    const candidates = /\d+w|\d+x/i.test(trimmed) ? srcsetCandidates(trimmed) : [trimmed];
+    for (const candidate of candidates) {
+        const decoded = tryDecodeURIComponent(candidate);
+        const proxyUrl = extractProxyImageUrl(candidate) ?? extractProxyImageUrl(decoded);
+        const lookups = [proxyUrl, decoded, candidate].filter((entry) => Boolean(entry));
+        for (const lookup of lookups) {
+            const filename = filenameFromUrl(lookup) ?? filenamesInText(lookup)[0];
+            if (!filename)
+                continue;
+            const url = toAbsoluteImageUrl(lookup, pageUrl);
+            if (!url)
+                continue;
+            return { filename, url };
+        }
+    }
+    return null;
+}
+function toAbsoluteImageUrl(value, pageUrl) {
+    let working = value.trim();
+    if (!working || working.startsWith("data:") || working.startsWith("blob:"))
+        return null;
+    if (looksUrlEncoded(working)) {
+        working = tryDecodeURIComponent(working);
+    }
+    const proxyUrl = extractProxyImageUrl(working);
+    if (proxyUrl) {
+        working = proxyUrl;
+    }
     try {
-        decoded = decodeURIComponent(trimmed);
+        return working.includes("://") ? new URL(working).href : new URL(working, pageUrl).href;
     }
     catch {
-        // keep original value
+        return null;
     }
-    return filenameFromUrl(trimmed) ?? filenameFromUrl(decoded) ?? filenamesInText(trimmed)[0] ?? filenamesInText(decoded)[0] ?? null;
 }
-function collectImageFilename($, $img) {
+function collectImageReference($, $img, pageUrl) {
     const candidates = [];
     const src = ($img.attr("src") ?? "").trim();
     if (src)
@@ -88,14 +151,16 @@ function collectImageFilename($, $img) {
         });
     }
     for (const candidate of candidates) {
-        const filename = filenameFromAttributeValue(candidate);
-        if (filename)
-            return filename;
+        const reference = imageReferenceFromValue(candidate, pageUrl);
+        if (reference)
+            return reference;
     }
     return null;
 }
-function imageIssueMessage(base, filename) {
-    return filename ? `${base} (${filename})` : base;
+function imageIssueMessage(base, reference) {
+    if (!reference)
+        return base;
+    return `${base} ([${reference.filename}](${reference.url}))`;
 }
 function isGenericAlt(alt, src) {
     const normalized = alt.trim().toLowerCase();
@@ -107,26 +172,26 @@ function isGenericAlt(alt, src) {
     const basename = filename.replace(/\.[^.]+$/, "").toLowerCase();
     return basename.length > 0 && normalized === basename;
 }
-export function extractImageIssues($) {
+export function extractImageIssues($, pageUrl) {
     const issues = [];
     $("img").each((_, element) => {
         const $img = $(element);
         if (isDecorativeImage($img))
             return;
         const src = ($img.attr("src") ?? "").trim();
-        const filename = collectImageFilename($, $img);
+        const reference = collectImageReference($, $img, pageUrl);
         const hasAlt = $img.get(0)?.attribs && Object.prototype.hasOwnProperty.call($img.get(0).attribs, "alt");
         const alt = ($img.attr("alt") ?? "").trim();
         if (!hasAlt) {
-            issues.push(crawlIssue("missing-alt", "error", imageIssueMessage("Image is missing an alt attribute.", filename)));
+            issues.push(crawlIssue("missing-alt", "error", imageIssueMessage("Image is missing an alt attribute.", reference)));
             return;
         }
         if (alt.length === 0) {
-            issues.push(crawlIssue("empty-alt", "warning", imageIssueMessage("Image has an empty alt attribute.", filename)));
+            issues.push(crawlIssue("empty-alt", "warning", imageIssueMessage("Image has an empty alt attribute.", reference)));
             return;
         }
         if (isGenericAlt(alt, src)) {
-            issues.push(crawlIssue("generic-alt", "warning", imageIssueMessage("Image uses generic alt text.", filename)));
+            issues.push(crawlIssue("generic-alt", "warning", imageIssueMessage("Image uses generic alt text.", reference)));
         }
     });
     return issues;

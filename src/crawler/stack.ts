@@ -1,8 +1,9 @@
-export type { StackDetection } from "./webappanalyzer/detect.js";
+export type { StackCategory, StackDetection } from "./stackDetect.js";
 export {
+  CURATED_STACK_NAMES,
   detectStackFromDns,
   detectStackFromHeaders,
   detectStackFromHtml,
   detectStackFromRobots,
-  loadTechnologyIndex,
-} from "./webappanalyzer/detect.js";
+  isCuratedStackName,
+} from "./stackDetect.js";

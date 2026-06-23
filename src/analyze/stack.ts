@@ -5,7 +5,6 @@ import {
   detectStackFromDns,
   detectStackFromHeaders,
   detectStackFromRobots,
-  loadTechnologyIndex,
   type StackDetection,
 } from "../crawler/stack.js";
 import type { TrackingItem } from "../crawler/schema.js";
@@ -75,8 +74,23 @@ function aggregateTracking(records: StackRecord[]): StackProfile["tracking"] {
   };
 }
 
+const STACK_CATEGORY_ORDER = ["Platform", "Framework", "CMS", "Search", "Hosting", "CDN", "Other"];
+
+function isCuratedStackDetection(detection: StackDetection): boolean {
+  return detection.detector === "flightcheck-v1";
+}
+
+function filterCuratedDetections(detections: StackDetection[]): StackDetection[] {
+  return detections.filter(isCuratedStackDetection);
+}
+
 function primaryCategory(detection: StackDetection): string {
   return detection.categories[0] ?? "Other";
+}
+
+function categorySortKey(category: string): number {
+  const index = STACK_CATEGORY_ORDER.indexOf(category);
+  return index === -1 ? STACK_CATEGORY_ORDER.length : index;
 }
 
 function aggregateDetections(
@@ -107,7 +121,7 @@ function aggregateDetections(
   };
 
   for (const { url, detections } of pageDetections) {
-    for (const detection of detections) {
+    for (const detection of filterCuratedDetections(detections)) {
       add(detection, url);
     }
   }
@@ -122,7 +136,7 @@ function aggregateDetections(
       pageCount: pages.size,
     }))
     .sort((a, b) => {
-      const categoryDiff = primaryCategory(a).localeCompare(primaryCategory(b));
+      const categoryDiff = categorySortKey(primaryCategory(a)) - categorySortKey(primaryCategory(b));
       if (categoryDiff !== 0) return categoryDiff;
       return a.name.localeCompare(b.name);
     });
@@ -139,36 +153,34 @@ export function aggregateStackFromRecords(records: StackRecord[]): StackProfile 
   };
 }
 
-export async function buildStackProfile(
+export function buildStackProfile(
   records: StackRecord[],
   options: {
     securityHeaders?: SecurityHeadersCheckResult;
     dns?: DnsCheckResult;
     robotsTxt?: RobotsTxtCheckResult;
   } = {}
-): Promise<StackProfile> {
-  await loadTechnologyIndex();
-
+): StackProfile {
   const pageDetections = records
     .filter((record) => record.stack?.detections?.length)
     .map((record) => ({ url: record.url, detections: record.stack!.detections }));
 
   const originDetections: StackDetection[] = [];
   if (options.securityHeaders) {
-    originDetections.push(...(await detectStackFromHeaders(options.securityHeaders.headers)));
+    originDetections.push(...detectStackFromHeaders(options.securityHeaders.headers));
   }
   if (options.dns) {
     originDetections.push(
-      ...(await detectStackFromDns({
+      ...detectStackFromDns({
         cname: options.dns.records.cname,
         ns: options.dns.records.ns,
         mx: options.dns.records.mx,
         txt: options.dns.records.txt,
-      }))
+      })
     );
   }
   if (options.robotsTxt?.body) {
-    originDetections.push(...(await detectStackFromRobots(options.robotsTxt.body)));
+    originDetections.push(...detectStackFromRobots(options.robotsTxt.body));
   }
 
   return {
@@ -201,7 +213,9 @@ export function buildStackSection(profile: StackProfile, totalPages: number): st
       byCategory.set(category, list);
     }
 
-    for (const [category, items] of [...byCategory.entries()].sort(([a], [b]) => a.localeCompare(b))) {
+    for (const [category, items] of [...byCategory.entries()].sort(
+      ([a], [b]) => categorySortKey(a) - categorySortKey(b)
+    )) {
       lines.push(`### ${category}`, "");
       for (const item of items) {
         const scope =

@@ -6,6 +6,10 @@ function withGroups(...groups: string[]): Set<CheckGroup> {
   return new Set(groups as CheckGroup[]);
 }
 
+function imageLink(filename: string, url: string): string {
+  return `([${filename}](${url}))`;
+}
+
 describe("extractVerificationRecord main landmark", () => {
   it("counts a single main element", () => {
     const record = extractVerificationRecord(
@@ -65,7 +69,7 @@ describe("extractVerificationRecord images group", () => {
           expect.objectContaining({
             id: "missing-alt",
             severity: "error",
-            message: "Image is missing an alt attribute. (hero.jpg)",
+            message: `Image is missing an alt attribute. ${imageLink("hero.jpg", "https://example.com/hero.jpg")}`,
           }),
         ]),
       })
@@ -91,11 +95,11 @@ describe("extractVerificationRecord images group", () => {
       expect.arrayContaining([
         expect.objectContaining({
           id: "missing-alt",
-          message: "Image is missing an alt attribute. (responsive-480.jpg)",
+          message: `Image is missing an alt attribute. ${imageLink("responsive-480.jpg", "https://example.com/responsive-480.jpg")}`,
         }),
         expect.objectContaining({
           id: "missing-alt",
-          message: "Image is missing an alt attribute. (hero.jpg)",
+          message: `Image is missing an alt attribute. ${imageLink("hero.jpg", "https://example.com/hero.jpg")}`,
         }),
       ])
     );
@@ -113,7 +117,54 @@ describe("extractVerificationRecord images group", () => {
     expect(record.images?.issues).toEqual([
       expect.objectContaining({
         id: "empty-alt",
-        message: "Image has an empty alt attribute. (4ed48727d6fc4e99b5e71625efc57e1d52b88e53-3840x2160.jpg)",
+        message: `Image has an empty alt attribute. ${imageLink(
+          "4ed48727d6fc4e99b5e71625efc57e1d52b88e53-3840x2160.jpg",
+          "https://cdn.sanity.io/images/project/production/4ed48727d6fc4e99b5e71625efc57e1d52b88e53-3840x2160.jpg?rect=0,1620,2160,3840&w=768&h=1024&fm=webp&q=40&dpr=2"
+        )}`,
+      }),
+    ]);
+  });
+
+  it("extracts filename from url-encoded sanity src values", () => {
+    const encoded =
+      "https%3A%2F%2Fcdn.sanity.io%2Fimages%2Ftble4w97%2Fproduction%2Fb512b2eac8e0a689ac8622eca96dc557fda91497-5328x3150.jpg";
+    const record = extractVerificationRecord(
+      `<!doctype html><html><body><img src="${encoded}"></body></html>`,
+      "https://example.com",
+      200,
+      "text/html",
+      withGroups("images")
+    );
+
+    expect(record.images?.issues).toEqual([
+      expect.objectContaining({
+        id: "missing-alt",
+        message: `Image is missing an alt attribute. ${imageLink(
+          "b512b2eac8e0a689ac8622eca96dc557fda91497-5328x3150.jpg",
+          "https://cdn.sanity.io/images/tble4w97/production/b512b2eac8e0a689ac8622eca96dc557fda91497-5328x3150.jpg"
+        )}`,
+      }),
+    ]);
+  });
+
+  it("extracts filename from next/image proxy src values", () => {
+    const src =
+      "/_next/image?url=https%3A%2F%2Fcdn.sanity.io%2Fimages%2Ftble4w97%2Fproduction%2Fb512b2eac8e0a689ac8622eca96dc557fda91497-5328x3150.jpg&w=3840&q=75";
+    const record = extractVerificationRecord(
+      `<!doctype html><html><body><img src="${src}"></body></html>`,
+      "https://example.com",
+      200,
+      "text/html",
+      withGroups("images")
+    );
+
+    expect(record.images?.issues).toEqual([
+      expect.objectContaining({
+        id: "missing-alt",
+        message: `Image is missing an alt attribute. ${imageLink(
+          "b512b2eac8e0a689ac8622eca96dc557fda91497-5328x3150.jpg",
+          "https://cdn.sanity.io/images/tble4w97/production/b512b2eac8e0a689ac8622eca96dc557fda91497-5328x3150.jpg"
+        )}`,
       }),
     ]);
   });

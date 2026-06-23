@@ -87,7 +87,7 @@ Example manifest `stack` block (derived from `StackProfile`):
 
 - Conflicting-signal warnings as todos
 - Per-client prompt overrides (`.flightcheck/prompts/`)
-- Optional Wappalyzer / webappanalyzer rule sync (see [stack.md](./stack.md))
+- Stack fingerprint sync removed from active path — see [stack.md](./stack.md) for curated rules.
 
 ---
 
@@ -97,7 +97,8 @@ Example manifest `stack` block (derived from `StackProfile`):
 | --- | --- | --- |
 | `*-raw.json` | Machine | Source of truth from all checks |
 | `*-report.md` | Human | Summary, priorities, grouped todos |
-| `*-fix-manifest.json` | Orchestrator | Work packages, routing, verification hooks |
+| `*-fix-manifest.json` | Agents / orchestrator | Work packages, routing, verification hooks |
+| `*-agent-jobs/` | Agents | Per-package `prompt.md` files (one PR each) |
 | `prompts/fix/*.md` | Sub-agents | How to fix each domain (composed at runtime) |
 
 The Markdown report stays client-friendly. Do **not** embed full agent prompts in the report.
@@ -127,10 +128,11 @@ package. See **Stack detection** above and [stack.md](./stack.md).
 
 ## Fix manifest
 
-Analyze writes `*-fix-manifest.json` alongside `*-report.md` (same basename as `*-raw.json`).
+Analyze writes `*-fix-manifest.json` and `*-agent-jobs/` alongside `*-report.md` (same basename as
+`*-raw.json`). Each auto-fixable work package gets a ready-to-paste `prompt.md` in its own folder.
 
-Orchestrator reads the manifest and spawns one agent per work package (parallel when surfaces do
-not conflict).
+The standalone `flightcheck-orchestrate` CLI can re-generate agent jobs from an existing manifest
+(e.g. after adding `.flightcheck/prompts/` overrides in the site repo).
 
 ### Codebase discovery (not hardcoded paths)
 
@@ -220,6 +222,20 @@ the consuming repo override, not in flightcheck defaults.
 
 Every agent **must** follow `prompts/fix/_base.md`. One work package → one PR.
 
+### MCP and external systems
+
+When a work package lists `mcpServers` (Sanity, Netlify, Vercel, etc.), agents **must not** write
+to the CMS or hosting environment without user approval:
+
+1. Explain the proposed changes in simple, non-jargon language.
+2. Wait for explicit confirmation.
+3. Apply only what was approved, then report what changed.
+
+Repo-only fixes (code, `netlify.toml`, `next.config`) proceed in the normal PR flow. Live CMS
+publishes and hosting dashboard changes always require ask-first validation.
+
+See **MCP and external systems (ask first)** in `prompts/fix/_base.md`.
+
 ### Title
 
 Conventional commits, scoped to the package:
@@ -287,19 +303,20 @@ deploy preview, Sanity Studio, DNS panel).
 
 ---
 
-## Orchestrator (`flightcheck-orchestrate`)
+## Agent jobs (automatic)
 
-The orchestrator is a small script that **prepares agent work** from a fix manifest. It does not run
-agents itself — it writes ready-to-paste prompt files, one per PR.
+Every analyze run writes `*-agent-jobs/` next to the manifest. This folder is the **agent
+workbench** — one subfolder per work package, one pull request each.
 
 ### What it means in practice
 
 ```text
-flightcheck crawl  →  *-fix-manifest.json  →  orchestrate  →  *-agent-jobs/
-                                                              ├── README.md
-                                                              ├── seo-site-wide/prompt.md  → Cursor agent → PR 1
-                                                              ├── infra-headers/prompt.md  → Cursor agent → PR 2
-                                                              └── secrets/MANUAL.md          → human
+flightcheck crawl  →  analyze  →  *-fix-manifest.json
+                              →  *-agent-jobs/
+                                   ├── README.md
+                                   ├── seo-site-wide/prompt.md  → Cursor agent → PR 1
+                                   ├── infra-headers/prompt.md  → Cursor agent → PR 2
+                                   └── infra-dns/MANUAL.md      → human
 ```
 
 Each `prompt.md` combines:
@@ -309,14 +326,16 @@ Each `prompt.md` combines:
 - Optional project override (`.flightcheck/prompts/{promptId}.md` in the site repo)
 - The work package issues, search hints, stack, and verify command
 
-### Usage
+Pass `--repo <path>` on the main CLI to pick up project prompt overrides from
+`.flightcheck/prompts/` in the site repo.
+
+### Re-run orchestrator (optional)
+
+Use `flightcheck-orchestrate` when you already have a manifest and want to regenerate agent jobs
+without re-crawling — for example after adding project prompt overrides:
 
 ```bash
-# After flightcheck analyze produced *-fix-manifest.json
-pnpm run orchestrate -- ./flightcheck/20260618.1413-eight.nl-fix-manifest.json
-
-# With site repo (for .flightcheck/prompts overrides) and verify URL
-pnpm run orchestrate -- ./flightcheck/20260618.1413-eight.nl-fix-manifest.json \
+pnpm exec tsx src/orchestrate.ts ./flightcheck/20260618.1413-eight.nl-fix-manifest.json \
   --repo ../eight.nl \
   --site-url https://eight.nl
 ```
@@ -325,13 +344,19 @@ Output defaults to `*-agent-jobs/` next to the manifest (e.g. `20260618.1413-eig
 
 ### Workflow for developers
 
-1. Run flightcheck on the site.
-2. Run orchestrate on the manifest.
-3. Open the site repo in Cursor.
-4. For each auto-fixable folder: new agent chat → paste `prompt.md` → review PR.
-5. Re-run flightcheck; repeat for remaining packages.
+1. Run flightcheck on the site (`pnpm start https://www.example.com` or your usual command).
+2. Open `*-agent-jobs/README.md` and the site repo in Cursor.
+3. For each auto-fixable folder: new agent chat → paste `prompt.md` → review PR.
+4. Re-run flightcheck; repeat for remaining packages.
 
 Manual packages (`autoFixable: false`) get `MANUAL.md` instead (DNS, secrets).
+
+---
+
+## Orchestrator CLI (`flightcheck-orchestrate`)
+
+Thin wrapper around the same `writeAgentJobs()` logic used by analyze. Prefer the automatic output
+from a full flightcheck run; use this CLI only to regenerate jobs from an existing manifest.
 
 ---
 

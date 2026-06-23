@@ -37,3 +37,18 @@ export function defaultManifestPathForInput(inputPath) {
     }
     return `${inputPath}-fix-manifest.json`;
 }
+export function defaultAgentJobsPathForInput(inputPath) {
+    if (inputPath.endsWith("-raw.json")) {
+        return `${inputPath.slice(0, -"-raw.json".length)}-agent-jobs`;
+    }
+    if (inputPath.endsWith("-fix-manifest.json")) {
+        return `${inputPath.slice(0, -"-fix-manifest.json".length)}-agent-jobs`;
+    }
+    if (inputPath.endsWith("-report.md")) {
+        return `${inputPath.slice(0, -"-report.md".length)}-agent-jobs`;
+    }
+    if (inputPath.endsWith(".json")) {
+        return `${inputPath.slice(0, -".json".length)}-agent-jobs`;
+    }
+    return `${inputPath}-agent-jobs`;
+}

@@ -3,25 +3,25 @@ import { aggregateStackFromRecords, buildStackProfile, buildStackSection } from 
 import { detectStackFromDns, detectStackFromHeaders } from "../crawler/stack.js";
 
 describe("stack detection helpers", () => {
-  it("returns an array from header analysis", async () => {
-    const detections = await detectStackFromHeaders({ "x-vercel-id": "iad1::abc-123" });
-    expect(Array.isArray(detections)).toBe(true);
+  it("detects Vercel from header analysis", () => {
+    const detections = detectStackFromHeaders({ "x-vercel-id": "iad1::abc-123" });
+    expect(detections.some((item) => item.name === "Vercel")).toBe(true);
   });
 
-  it("returns an array from DNS analysis", async () => {
-    const detections = await detectStackFromDns({
+  it("detects Netlify from DNS analysis", () => {
+    const detections = detectStackFromDns({
       cname: ["example.netlify.app"],
       ns: [],
       mx: [],
       txt: [],
     });
-    expect(Array.isArray(detections)).toBe(true);
+    expect(detections.some((item) => item.name === "Netlify")).toBe(true);
   });
 });
 
 describe("buildStackSection", () => {
-  it("renders stack and tracking details", async () => {
-    const profile = await buildStackProfile(
+  it("renders stack and tracking details", () => {
+    const profile = buildStackProfile(
       [
         {
           url: "https://example.com",
@@ -33,9 +33,10 @@ describe("buildStackSection", () => {
             detections: [
               {
                 name: "Next.js",
-                categories: ["JavaScript frameworks"],
+                categories: ["Framework"],
                 confidence: "high",
-                evidence: ["js: `__NEXT_DATA__`"],
+                evidence: ["html: `__NEXT_DATA__`"],
+                detector: "flightcheck-v1",
               },
             ],
           },

@@ -104,7 +104,7 @@ export function extractVerificationRecord(
   }
 
   if (activeGroups.has("images")) {
-    result.images = { issues: extractImageIssues($) };
+    result.images = { issues: extractImageIssues($, url) };
   }
 
   if (activeGroups.has("a11y-static")) {

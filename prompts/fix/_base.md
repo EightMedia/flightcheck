@@ -11,6 +11,35 @@ request** that a developer can review in a few minutes.
 - If you discover blockers or issues outside this package, note them in **Out of scope** — do not
   fix them in this PR.
 
+## MCP and external systems (ask first)
+
+Some work packages list `mcpServers` (e.g. Sanity, Netlify, Vercel). **Never apply CMS or hosting
+changes through MCP without explicit user approval.**
+
+### Required flow
+
+1. **Stop before changing anything** in a CMS dataset, Studio, hosting dashboard, or deploy
+   settings.
+2. **Explain in plain language** what you found, what you propose to change, and why it fixes the
+   flightcheck issues. No jargon — write for a developer who did not run the audit.
+3. **List concrete changes** (documents/fields, env vars, headers, redirects, publish actions).
+4. **Ask the user to confirm** before you use any MCP tool that creates, updates, publishes, or
+   deletes content or hosting configuration.
+5. **Only after approval**, make the agreed changes and summarize exactly what was done.
+
+### Hard rules
+
+- **CMS (`cms-studio`, Sanity/Contentful/etc. MCP):** Read and inspect only until the user
+  approves. Do not create, patch, publish, or delete CMS documents unasked.
+- **Hosting (`hosting-panel`, Netlify/Vercel MCP):** Prefer repo config (`netlify.toml`,
+  `vercel.json`, `next.config`) first. Any live hosting/dashboard change needs the same
+  explain → confirm → apply flow.
+- **If the user declines or is unavailable:** Open a draft PR with repo-only changes, or document
+  the manual/CMS steps in the PR — do not proceed with MCP writes.
+
+Code changes in the site repo do not need a separate approval step, but still belong in one PR with
+a clear description.
+
 ## Finding where to fix (`locationDiscovery`)
 
 Work packages include `locationDiscovery` and `searchHints`. **You have the full site source code
@@ -19,8 +48,8 @@ available** — use it.
 | `locationDiscovery` | What to do |
 | --- | --- |
 | `search-codebase` | Search the repo for layouts, metadata helpers, templates, and routes. Match the project's existing patterns. |
-| `hosting-panel` | Prefer repo config (`netlify.toml`, `vercel.json`, `next.config`) via codebase search first; use hosting MCP if configured. |
-| `cms-studio` | Use CMS MCP when listed in `mcpServers`; otherwise search for schema, queries, and image fields in code. |
+| `hosting-panel` | Prefer repo config (`netlify.toml`, `vercel.json`, `next.config`) via codebase search first. Hosting MCP: explain proposed changes and get user approval before any live change. |
+| `cms-studio` | CMS MCP: inspect only until the user approves. Then apply only the agreed document/field updates — never edit CMS content silently. |
 | `dns-panel` | Manual DNS/registrar change — document steps in the PR, do not guess record values. |
 | `manual` | Do not auto-fix — explain required human action in the PR. |
 
@@ -73,6 +102,7 @@ Copy this structure exactly. Fill every section; omit nothing.
 
 - [ ] Only files for this work package were changed
 - [ ] No unrelated refactors or dependency updates
+- [ ] Any CMS or hosting MCP changes were approved by the user before applying
 - [ ] PR is compact and reviewable in under 10 minutes
 - [ ] Verification steps are reproducible without reading the full audit report
 ```

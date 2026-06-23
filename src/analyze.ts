@@ -34,6 +34,8 @@ async function main(): Promise<void> {
             input: basename(result.inputPath),
             output: result.reportPath,
             manifest: result.manifestPath,
+            agentJobs: result.agentJobsPath,
+            agentJobPackages: result.agentJobs?.autoFixableCount,
             pagesAnalyzed: result.pagesAnalyzed,
           },
           null,
