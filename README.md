@@ -1,4 +1,4 @@
-# Flightcheck
+# 🚀 Flightcheck
 
 **Pre-launch website audit — with ready-to-use fix instructions for AI agents.**
 
@@ -9,11 +9,11 @@ AI agents can act on immediately.
 
 ## How it works
 
-1. **Crawl & checks** — Flightcheck scans pages and runs modular checks (SEO, a11y, security,
+1. **🕷️ Crawl & checks** — Flightcheck scans pages and runs modular checks (SEO, a11y, security,
    infra).
-2. **Analyze** — findings are grouped by where they need to be fixed: site-wide, per template,
+2. **🕵️‍♀️ Analyze** — findings are grouped by where they need to be fixed: site-wide, per template,
    or per page.
-3. **Agent jobs** — for each fix package, Flightcheck generates a `prompt.md` with concrete
+3. **🦾 Agent jobs** — for each fix package, Flightcheck generates a `prompt.md` with concrete
    instructions. AI agents can use these to propose targeted pull requests: one PR per package,
    reviewable and verifiable.
 
