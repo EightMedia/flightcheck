@@ -1,29 +1,29 @@
 # Flightcheck
 
-**Pre-launch audit voor websites — met kant-en-klare fix-instructies voor AI agents.**
+**Pre-launch website audit — with ready-to-use fix instructions for AI agents.**
 
-Flightcheck crawlt een site en controleert wat er mis is vóór je live gaat: ontbrekende
-meta-tags, toegankelijkheidsproblemen, zwakke security headers, DNS-instellingen,
-robots.txt- en sitemap-afwijkingen, en meer. Het resultaat is geen vage checklist, maar
-gestructureerde output waar zowel developers als AI agents direct mee aan de slag kunnen.
+Flightcheck crawls a site and checks what's wrong before you go live: missing meta tags,
+accessibility issues, weak security headers, DNS settings, robots.txt and sitemap mismatches,
+and more. The result is not a vague checklist, but structured output that both developers and
+AI agents can act on immediately.
 
-## Hoe het werkt
+## How it works
 
-1. **Crawl & checks** — Flightcheck scant pagina's en draait modulaire checks (SEO, a11y,
-   security, infra).
-2. **Analyse** — bevindingen worden gegroepeerd op waar ze gefixt moeten worden:
-   site-wide, per template, of per pagina.
-3. **Agent jobs** — voor elk fix-pakket genereert Flightcheck een `prompt.md` met concrete
-   instructies. AI agents kunnen daarmee gerichte pull requests voorstellen: één PR per
-   package, reviewbaar en verifieerbaar.
+1. **Crawl & checks** — Flightcheck scans pages and runs modular checks (SEO, a11y, security,
+   infra).
+2. **Analyze** — findings are grouped by where they need to be fixed: site-wide, per template,
+   or per page.
+3. **Agent jobs** — for each fix package, Flightcheck generates a `prompt.md` with concrete
+   instructions. AI agents can use these to propose targeted pull requests: one PR per package,
+   reviewable and verifiable.
 
-| Output | Voor wie | Doel |
+| Output | Audience | Purpose |
 | --- | --- | --- |
-| `*-report.md` | Mens | Samenvatting, prioriteiten, gegroepeerde todo's |
-| `*-fix-manifest.json` | Orchestrator / agents | Work packages, routing, verificatie-hooks |
-| `*-agent-jobs/` | AI agents | `BASE.md`, `PLAN.md`, en per package een `prompt.md` |
+| `*-report.md` | Human | Summary, priorities, grouped todos |
+| `*-fix-manifest.json` | Orchestrator / agents | Work packages, routing, verification hooks |
+| `*-agent-jobs/` | AI agents | `BASE.md`, `PLAN.md`, and a `prompt.md` per package |
 
-Zie [docs/agent-fixes.md](docs/agent-fixes.md) voor het volledige agent-workflow.
+See [docs/agent-fixes.md](docs/agent-fixes.md) for the full agent workflow.
 
 ## Quick start
 
@@ -34,10 +34,10 @@ pnpm run flightcheck -- https://example.com
 
 This writes timestamped files in `./flightcheck/`, for example:
 
-- `./flightcheck/20260618.1413-eight.nl-raw.json` — brondata van alle checks
-- `./flightcheck/20260618.1413-eight.nl-report.md` — menselijk leesbaar rapport
-- `./flightcheck/20260618.1413-eight.nl-fix-manifest.json` — work packages voor agents
-- `./flightcheck/20260618.1413-eight.nl-agent-jobs/` — prompts per fix-pakket
+- `./flightcheck/20260618.1413-eight.nl-raw.json` — source data from all checks
+- `./flightcheck/20260618.1413-eight.nl-report.md` — human-readable report
+- `./flightcheck/20260618.1413-eight.nl-fix-manifest.json` — work packages for agents
+- `./flightcheck/20260618.1413-eight.nl-agent-jobs/` — prompts per fix package
 
 By default this runs all implemented checks: crawl, security headers, DNS, robots.txt,
 sitemap validation, and analyze. If the start URL is a domain redirect, only redirect
@@ -50,7 +50,7 @@ To re-analyze an existing JSON file without re-crawling:
 pnpm run analyze -- ./flightcheck/20260618.1413-eight.nl-raw.json
 ```
 
-## Documentatie
+## Documentation
 
 - `docs/qc-checks-plan.md` — roadmap for full site QC checks
 - `docs/checks.md` — modular check API and extension guide

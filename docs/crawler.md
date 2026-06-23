@@ -1,41 +1,40 @@
 # Flightcheck Crawler
 
-Deze crawler verzamelt per URL verificatie-data voor SEO, metadata, tracking en iconen.
+This crawler collects per-URL verification data for SEO, metadata, tracking, and icons.
 
-## Doel
+## Purpose
 
-- Crawlen vanaf een start-URL; sitemap-URL's worden standaard als extra seeds toegevoegd zodat alle pagina's uit de sitemap worden bezocht.
-- Schrijven van incrementele JSON output na elke verwerkte URL.
-- Deduplicatie op URL zonder query/hash.
-- Excludes op URL en pathname.
-- Veilige throttling via concurrency, delay en burst delay.
+- Crawl from a start URL; sitemap URLs are added as extra seeds by default so all pages from the sitemap are visited.
+- Write incremental JSON output after each processed URL.
+- Deduplicate on URL without query/hash.
+- Exclude by URL and pathname.
+- Safe throttling via concurrency, delay, and burst delay.
 
-## CLI gebruik
+## CLI usage
 
 ```bash
 pnpm run flightcheck -- https://example.com
 ```
 
-Standaard schrijft flightcheck zowel JSON als een Markdown TODO-rapport in `./flightcheck/`, met
-bestandsnamen op basis van timestamp en hostname, bijvoorbeeld:
+By default, flightcheck writes both JSON and a Markdown TODO report to `./flightcheck/`, with
+filenames based on timestamp and hostname, for example:
 
 - `./flightcheck/20260618.1413-eight.nl-raw.json`
 - `./flightcheck/20260618.1413-eight.nl-report.md`
 
-De analyze-stap schrijft daarnaast een fix-manifest en een map met agent-jobs naast
-het rapport:
+The analyze step also writes a fix manifest and an agent-jobs folder alongside the report:
 
 - `./flightcheck/20260618.1413-eight.nl-fix-manifest.json`
 - `./flightcheck/20260618.1413-eight.nl-agent-jobs/`
 
-Met `--json-only` sla je het Markdown-rapport over.
+Use `--json-only` to skip the Markdown report.
 
-Belangrijkste flags:
+Key flags:
 
 - `--output <file>` default `{timestamp}-{hostname}-raw.json` in `./flightcheck/`
 - `--report <file>` default `{timestamp}-{hostname}-report.md` in `./flightcheck/`
-- `--json-only` alleen JSON schrijven, geen Markdown-rapport; bij `--json-only` vallen de default-checks terug op alleen `crawl`
-- `--errors-only` neem alleen records met errors of ontbrekende attributen op in het rapport
+- `--json-only` write JSON only, no Markdown report; with `--json-only`, default checks fall back to `crawl` only
+- `--errors-only` include only records with errors or missing attributes in the report
 - `--checks <ids>` comma-separated checks; default: all implemented checks (`crawl`, `security-headers`, `dns`, `robots-txt`, `sitemap`, `analyze`)
 - `--parallel` run independent checks in the same wave concurrently
 - `--max-pages <n>`
@@ -43,17 +42,17 @@ Belangrijkste flags:
 - `--timeout-ms <n>`
 - `--concurrency <n>`
 - `--burst-delay-ms <n>`
-- `--sitemap-start` (legacy) beperkt de initiële seeds tot sitemap-URL's plus de start-URL; standaard worden sitemap-URL's al aan de crawl-queue toegevoegd
+- `--sitemap-start` (legacy) limits initial seeds to sitemap URLs plus the start URL; by default sitemap URLs are already added to the crawl queue
 - `--sitemap-url <url>`
-- `--exclude <pattern1,pattern2>` (herhaalbaar)
+- `--exclude <pattern1,pattern2>` (repeatable)
 - `--respect-robots-txt`
-- `--quiet` (onderdrukt Crawlee info/statistics logs; alleen warnings en errors)
-- `--only <groups>` draai alleen deze check-groepen (komma-gescheiden)
-- `--skip <groups>` sla deze check-groepen over (komma-gescheiden)
-- `--reveal-secrets` toon volledige secret-waarden in plaats van gemaskeerde
-- `--repo <path>` pad naar de site-repo voor agent-prompt overrides (`.flightcheck/prompts/`)
+- `--quiet` (suppress Crawlee info/statistics logs; warnings and errors only)
+- `--only <groups>` run only these check groups (comma-separated)
+- `--skip <groups>` skip these check groups (comma-separated)
+- `--reveal-secrets` show full secret values instead of masked
+- `--repo <path>` path to the site repo for agent prompt overrides (`.flightcheck/prompts/`)
 
-Voorbeelden:
+Examples:
 
 ```bash
 pnpm run flightcheck -- https://example.com --max-pages 200 --concurrency 5 --delay-ms 100
@@ -66,22 +65,21 @@ pnpm run flightcheck -- https://example.com --skip tracking,social
 pnpm run flightcheck -- https://example.com --only security --reveal-secrets
 ```
 
-## Check-groepen
+## Check groups
 
-De extractie is opgedeeld in benoemde groepen. Standaard draaien alle groepen; met
-`--only` draai je er één of enkele, met `--skip` sluit je groepen uit. `--only` en
-`--skip` kunnen niet samen worden gebruikt.
+Extraction is split into named groups. All groups run by default; with `--only` you run one or a
+few, with `--skip` you exclude groups. `--only` and `--skip` cannot be used together.
 
 - `meta` — title, h1, description, robots, template, metaTitle, charset, language,
   viewport, doctype, canonical, color-scheme, theme-color, main landmark count.
-- `icons` — favicon en icons.
-- `social` — Open Graph en Twitter metadata.
+- `icons` — favicon and icons.
+- `social` — Open Graph and Twitter metadata.
 - `tracking` — GTM, GA4, UA, Matomo, Facebook Pixel, Plausible.
 - `stack` — technology fingerprints via curated rules (see [stack.md](./stack.md)).
-- `security` — scan op gelekte API-keys en secrets (zie hieronder).
-- `images` — extraheert image-alt problemen naar `images.issues` (missing-alt,
+- `security` — scan for leaked API keys and secrets (see below).
+- `images` — extracts image-alt issues to `images.issues` (missing-alt,
   empty-alt, generic-alt).
-- `a11y-static` — statische toegankelijkheidschecks naar `a11yStatic.issues`
+- `a11y-static` — static accessibility checks to `a11yStatic.issues`
   (heading-skip, multiple-h1, missing-lang, unlabeled-input, positive-tabindex).
 
 ### Sitemap parsing
@@ -91,77 +89,74 @@ via nested `<loc>` entries, or a **urlset** with page URLs. The crawler follows 
 index files recursively and treats apex and `www` hostnames as the same site (so
 `https://eight.nl/sitemap.xml` can discover URLs on `https://www.eight.nl/`).
 
-De `security`-groep scant zowel de pagina-HTML als de gelinkte same-origin
-JavaScript-bestanden (`<script src>`) op gelekte API-keys en secrets. Gedeelde
-bundles worden per URL gecached en dus maar één keer opgehaald. Bevindingen krijgen
-een severity:
+The `security` group scans both page HTML and linked same-origin JavaScript files (`<script src>`)
+for leaked API keys and secrets. Shared bundles are cached per URL and fetched only once.
+Findings get a severity:
 
-- `critical` — hoort nooit in client-code (AWS-keys, Stripe secret keys, GitHub
-  tokens, private-key blocks, generieke `secret`/`password` toewijzingen).
-- `review` — normaal in client-code maar hoort domein-/referrer-beperkt te zijn
-  (Google API-keys, Stripe publishable keys, generieke `apiKey`/`token`).
+- `critical` — should never be in client code (AWS keys, Stripe secret keys, GitHub
+  tokens, private-key blocks, generic `secret`/`password` assignments).
+- `review` — normal in client code but should be domain-/referrer-restricted
+  (Google API keys, Stripe publishable keys, generic `apiKey`/`token`).
 
-De providers/patterns zijn: google-api-key (`google`), aws-access-key-id (`aws`),
-stripe-secret-key en stripe-publishable-key (`stripe`), github-token (`github`),
-private-key, generic-secret en generic-api-key (`generic`).
+The providers/patterns are: google-api-key (`google`), aws-access-key-id (`aws`),
+stripe-secret-key and stripe-publishable-key (`stripe`), github-token (`github`),
+private-key, generic-secret and generic-api-key (`generic`).
 
-Secret-waarden worden standaard gemaskeerd (`AIzaSy…BC0Y`). De samenvatting toont dan
-een hint om opnieuw te draaien met `--reveal-secrets` voor de volledige waarden.
+Secret values are masked by default (`AIzaSy…BC0Y`). The summary then shows a hint to
+re-run with `--reveal-secrets` for full values.
 
-Wanneer een groep wordt overgeslagen, blijven de bijbehorende velden leeg; de
-output-structuur verandert nooit.
+When a group is skipped, the corresponding fields stay empty; the output structure never changes.
 
 ## Output schema
 
-Elke record bevat:
+Each record contains:
 
-- URL en status
-- H1/title/meta velden, inclusief `template` (uit `meta[name="template"]`) en `metaTitle`
-- `mainCount` (aantal `<main>`-elementen, `null` wanneer meta-groep overgeslagen is)
+- URL and status
+- H1/title/meta fields, including `template` (from `meta[name="template"]`) and `metaTitle`
+- `mainCount` (number of `<main>` elements, `null` when meta group is skipped)
 - canonical/favicon/icons
-- OG en Twitter metadata
-- tracking detectie (GTM, GA4, UA, Matomo, Facebook Pixel, Plausible)
-- `stack.detections` — technology fingerprints per pagina (geaggregeerd in analyze)
-- `security` met `secrets` (gevonden keys/secrets) en `scannedAssets` (aantal
-  gescande JS-bestanden)
-- `images.issues` — image-alt problemen (alleen wanneer de `images`-groep draait)
-- `a11yStatic.issues` — statische a11y-bevindingen (alleen wanneer de `a11y-static`-groep draait)
-- optionele `note` en `error`
+- OG and Twitter metadata
+- tracking detection (GTM, GA4, UA, Matomo, Facebook Pixel, Plausible)
+- `stack.detections` — technology fingerprints per page (aggregated in analyze)
+- `security` with `secrets` (found keys/secrets) and `scannedAssets` (number of
+  scanned JS files)
+- `images.issues` — image-alt issues (only when the `images` group runs)
+- `a11yStatic.issues` — static a11y findings (only when the `a11y-static` group runs)
+- optional `note` and `error`
 
-Tekstvelden worden altijd gevuld met een string, dus geen `undefined` of `null`.
+Text fields are always filled with a string — no `undefined` or `null`.
 
-Elke `secrets`-bevinding bevat `type`, `provider`, `severity` (`critical` of
-`review`), `masked` (gemaskeerde of — met `--reveal-secrets` — volledige waarde) en
-`source` (`html` of de URL van het JS-bestand). De afsluitende samenvatting bevat
-`secretsFound` (totaal aantal bevindingen) en, bij gemaskeerde output met
-bevindingen, een `hint`.
+Each `secrets` finding contains `type`, `provider`, `severity` (`critical` or
+`review`), `masked` (masked or — with `--reveal-secrets` — full value) and
+`source` (`html` or the URL of the JS file). The closing summary contains
+`secretsFound` (total number of findings) and, with masked output and findings, a `hint`.
 
-## Architectuur
+## Architecture
 
-De CLI draait via de checks-laag (`runChecks` in `src/checks/runner.ts`), die de
-crawler aanstuurt; `src/cli.ts` roept dus niet langer `runCrawler` rechtstreeks aan.
-De checks-laag plant de checks in waves en levert de crawl- en analyze-output.
+The CLI runs via the checks layer (`runChecks` in `src/checks/runner.ts`), which drives the
+crawler; `src/cli.ts` no longer calls `runCrawler` directly.
+The checks layer plans checks in waves and delivers crawl and analyze output.
 
-- Checks-laag: `src/checks/runner.ts`, `src/checks/crawl.ts`, `src/checks/types.ts`
-- Crawl laag: `src/crawler/runCrawler.ts`
-- Extract laag: `src/crawler/extractors.ts`, `src/crawler/tier1Extractors.ts`,
-  `src/crawler/tracking.ts`, `src/crawler/secrets.ts` en `src/crawler/stack.ts`
-- Report laag: `src/crawler/reporter.ts`
+- Checks layer: `src/checks/runner.ts`, `src/checks/crawl.ts`, `src/checks/types.ts`
+- Crawl layer: `src/crawler/runCrawler.ts`
+- Extract layer: `src/crawler/extractors.ts`, `src/crawler/tier1Extractors.ts`,
+  `src/crawler/tracking.ts`, `src/crawler/secrets.ts` and `src/crawler/stack.ts`
+- Report layer: `src/crawler/reporter.ts`
 
-Daarnaast:
+Additionally:
 
-- URL normalisatie en excludes: `src/crawler/urlUtils.ts`
+- URL normalization and excludes: `src/crawler/urlUtils.ts`
 - Sitemap parsing: `src/crawler/sitemap.ts`
 - CLI parsing: `src/cli.ts`
 
-## Gedrag
+## Behavior
 
-- Alleen interne links worden gecrawld. Links worden zelf ontdekt via `extractInternalLinks` en toegevoegd aan de queue; er wordt bewust geen `enqueueLinks` van Crawlee gebruikt.
-- Sitemap-URL's worden standaard aan de crawl-queue toegevoegd zodat pagina's uit `sitemap.xml` ook worden bezocht, ook wanneer ze niet via interne links bereikbaar zijn.
-- `--max-pages` is de harde stop (`maxRequestsPerCrawl`). De crawl stopt zodra dit aantal is verwerkt, ook al zijn er nog niet-bezochte links. Verhoog `--max-pages` om de hele site te crawlen.
-- Query parameters en hashes tellen niet mee voor URL-identiteit.
-- Non-HTML responses worden gerapporteerd met `note`.
-- Links naar bestanden met een bekende non-HTML extensie (zoals `.pdf`, `.zip`, afbeeldingen, video, fonts) worden niet aan de queue toegevoegd, zodat Crawlee geen onnodige retries en errors genereert.
-- Met `--respect-robots-txt` worden URLs overgeslagen die door `robots.txt` zijn uitgesloten.
-- Na elke URL wordt atomisch geschreven naar outputbestand.
-- Bij `SIGINT` stopt de crawl gecontroleerd met behoud van partial output.
+- Only internal links are crawled. Links are discovered via `extractInternalLinks` and added to the queue; Crawlee's `enqueueLinks` is intentionally not used.
+- Sitemap URLs are added to the crawl queue by default so pages from `sitemap.xml` are visited even when they are not reachable via internal links.
+- `--max-pages` is the hard stop (`maxRequestsPerCrawl`). The crawl stops once this count is processed, even if unvisited links remain. Increase `--max-pages` to crawl the entire site.
+- Query parameters and hashes do not count toward URL identity.
+- Non-HTML responses are reported with `note`.
+- Links to files with a known non-HTML extension (such as `.pdf`, `.zip`, images, video, fonts) are not added to the queue, so Crawlee does not generate unnecessary retries and errors.
+- With `--respect-robots-txt`, URLs excluded by `robots.txt` are skipped.
+- After each URL, output is written atomically.
+- On `SIGINT`, the crawl stops gracefully while preserving partial output.
