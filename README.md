@@ -1,6 +1,29 @@
 # Flightcheck
 
-Crawler voor site-verificatie met output naar JSON.
+**Pre-launch audit voor websites — met kant-en-klare fix-instructies voor AI agents.**
+
+Flightcheck crawlt een site en controleert wat er mis is vóór je live gaat: ontbrekende
+meta-tags, toegankelijkheidsproblemen, zwakke security headers, DNS-instellingen,
+robots.txt- en sitemap-afwijkingen, en meer. Het resultaat is geen vage checklist, maar
+gestructureerde output waar zowel developers als AI agents direct mee aan de slag kunnen.
+
+## Hoe het werkt
+
+1. **Crawl & checks** — Flightcheck scant pagina's en draait modulaire checks (SEO, a11y,
+   security, infra).
+2. **Analyse** — bevindingen worden gegroepeerd op waar ze gefixt moeten worden:
+   site-wide, per template, of per pagina.
+3. **Agent jobs** — voor elk fix-pakket genereert Flightcheck een `prompt.md` met concrete
+   instructies. AI agents kunnen daarmee gerichte pull requests voorstellen: één PR per
+   package, reviewbaar en verifieerbaar.
+
+| Output | Voor wie | Doel |
+| --- | --- | --- |
+| `*-report.md` | Mens | Samenvatting, prioriteiten, gegroepeerde todo's |
+| `*-fix-manifest.json` | Orchestrator / agents | Work packages, routing, verificatie-hooks |
+| `*-agent-jobs/` | AI agents | `BASE.md`, `PLAN.md`, en per package een `prompt.md` |
+
+Zie [docs/agent-fixes.md](docs/agent-fixes.md) voor het volledige agent-workflow.
 
 ## Quick start
 
@@ -11,8 +34,10 @@ pnpm run flightcheck -- https://example.com
 
 This writes timestamped files in `./flightcheck/`, for example:
 
-- `./flightcheck/20260618.1413-eight.nl-raw.json`
-- `./flightcheck/20260618.1413-eight.nl-report.md`
+- `./flightcheck/20260618.1413-eight.nl-raw.json` — brondata van alle checks
+- `./flightcheck/20260618.1413-eight.nl-report.md` — menselijk leesbaar rapport
+- `./flightcheck/20260618.1413-eight.nl-fix-manifest.json` — work packages voor agents
+- `./flightcheck/20260618.1413-eight.nl-agent-jobs/` — prompts per fix-pakket
 
 By default this runs all implemented checks: crawl, security headers, DNS, robots.txt,
 sitemap validation, and analyze. If the start URL is a domain redirect, only redirect
