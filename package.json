@@ -20,7 +20,6 @@
   },
   "files": [
     "dist",
-    "data/webappanalyzer",
     "docs/*.md",
     "prompts/fix",
     "README.md",
@@ -38,7 +37,6 @@
     "build": "tsc",
     "prepublishOnly": "tsc",
     "start": "node dist/cli.js",
-    "sync:webappanalyzer": "node scripts/sync-webappanalyzer.mjs",
     "test": "vitest run",
     "test:watch": "vitest"
   },

@@ -41,9 +41,6 @@ distribute it under the GPL terms. Derivative works must also be open source und
 compatible license — it cannot be incorporated into closed-source products without
 complying with the GPL (typically by open-sourcing the combined work).
 
-Technology fingerprints in `data/webappanalyzer/` are derived from
-[enthec/webappanalyzer](https://github.com/enthec/webappanalyzer).
-
 ## Programmatic API
 
 ```typescript

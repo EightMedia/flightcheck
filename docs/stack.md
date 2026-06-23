@@ -97,11 +97,3 @@ Use `IMPLIED` for safe parent technology inference (e.g. Next.js → Node.js).
 Use `EXCLUDES` to suppress redundant detections (e.g. Next.js excludes generic React).
 
 Add tests in `src/crawler/stackDetect.test.ts`.
-
-## Legacy webappanalyzer data
-
-An entire webappanalyzer engine still ships in the repo: the `src/crawler/webappanalyzer/`
-TypeScript engine (`engine.ts`, `detect.ts`, `patterns.ts`, `types.ts`, `buildItems.ts`,
-`dom.ts`), the `data/webappanalyzer/` directory, and the `pnpm run sync:webappanalyzer` script.
-None of it is on the active detection path — the engine is not imported anywhere in `src/`, and
-detection runs entirely through `src/crawler/stackDetect.ts`. It may be removed in a future cleanup.

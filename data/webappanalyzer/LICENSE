@@ -1,6 +1,0 @@
-Technology fingerprints in this directory are derived from enthec/webappanalyzer:
-https://github.com/enthec/webappanalyzer
-
-Flightcheck as a whole is licensed under GPL-3.0. See the repository root LICENSE file.
-
-Sync with: pnpm run sync:webappanalyzer
