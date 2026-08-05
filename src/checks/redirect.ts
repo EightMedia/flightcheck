@@ -1,5 +1,5 @@
 import { DEFAULT_TIMEOUT_MS, DEFAULT_USER_AGENT } from "../crawler/defaults.js";
-import { normalizeUrl } from "../crawler/urlUtils.js";
+import { isPlatformPreviewHostname, normalizeUrl } from "../crawler/urlUtils.js";
 import { issue, type CheckIssue } from "./issues.js";
 import type { CheckId } from "./types.js";
 import { DEFAULT_CHECK_IDS } from "./types.js";
@@ -51,10 +51,11 @@ function hostnameFromUrl(url: string): string {
   return new URL(url).hostname.toLowerCase();
 }
 
-function shouldCheckWwwAlias(hostname: string): boolean {
+export function shouldCheckWwwAlias(hostname: string): boolean {
   if (hostname === "localhost") return false;
   if (/^\d+\.\d+\.\d+\.\d+$/.test(hostname)) return false;
   if (hostname.includes(":")) return false;
+  if (isPlatformPreviewHostname(hostname)) return false;
   return true;
 }
 

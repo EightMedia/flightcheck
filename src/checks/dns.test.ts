@@ -66,6 +66,18 @@ describe("analyzeDnsRecords", () => {
     );
   });
 
+  it("skips SPF and DMARC warnings on Vercel and Netlify preview domains", async () => {
+    vi.spyOn(dns.promises, "resolveTxt").mockResolvedValue([["google-site-verification=abc"]]);
+
+    const vercel = await analyzeDnsRecords("https://staywoud.vercel.app/");
+    const netlify = await analyzeDnsRecords("https://my-site.netlify.app/");
+
+    expect(vercel.issues.find((entry) => entry.id === "missing-spf")).toBeUndefined();
+    expect(vercel.issues.find((entry) => entry.id === "missing-dmarc")).toBeUndefined();
+    expect(netlify.issues.find((entry) => entry.id === "missing-spf")).toBeUndefined();
+    expect(netlify.issues.find((entry) => entry.id === "missing-dmarc")).toBeUndefined();
+  });
+
   it("extracts hostname from a full URL", async () => {
     await analyzeDnsRecords("https://www.example.com/path");
 

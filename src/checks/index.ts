@@ -14,6 +14,7 @@ import {
   resolveCanonicalUrl,
   resolveChecksForRedirect,
   runRedirectCheck,
+  shouldCheckWwwAlias,
   toggleWwwHostname,
 } from "./redirect.js";
 
@@ -44,6 +45,7 @@ export {
   resolveCanonicalUrl,
   resolveChecksForRedirect,
   runRedirectCheck,
+  shouldCheckWwwAlias,
   toggleWwwHostname,
 };
 

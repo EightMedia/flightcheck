@@ -5,6 +5,7 @@ import {
   buildAlternateHostUrl,
   resolveCanonicalUrl,
   resolveChecksForRedirect,
+  shouldCheckWwwAlias,
   toggleWwwHostname,
 } from "./redirect.js";
 import { DEFAULT_CHECK_IDS } from "./types.js";
@@ -150,6 +151,25 @@ describe("resolveCanonicalUrl", () => {
 
   it("uses the start URL when there is no redirect target", () => {
     expect(resolveCanonicalUrl("https://www.example.com/", { resolvedTarget: null })).toBe("https://www.example.com/");
+  });
+});
+
+describe("shouldCheckWwwAlias", () => {
+  it("checks normal custom domains", () => {
+    expect(shouldCheckWwwAlias("example.com")).toBe(true);
+    expect(shouldCheckWwwAlias("www.example.com")).toBe(true);
+  });
+
+  it("skips localhost, IPs, and IPv6-style hosts", () => {
+    expect(shouldCheckWwwAlias("localhost")).toBe(false);
+    expect(shouldCheckWwwAlias("127.0.0.1")).toBe(false);
+    expect(shouldCheckWwwAlias("::1")).toBe(false);
+  });
+
+  it("skips Vercel and Netlify platform preview domains", () => {
+    expect(shouldCheckWwwAlias("staywoud.vercel.app")).toBe(false);
+    expect(shouldCheckWwwAlias("project-git-main-team.vercel.app")).toBe(false);
+    expect(shouldCheckWwwAlias("my-site.netlify.app")).toBe(false);
   });
 });
 

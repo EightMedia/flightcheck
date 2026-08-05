@@ -11,11 +11,11 @@ together by the CLI.
 | `crawl` | implemented | Crawl pages and collect SEO, metadata, tracking, and security data |
 | `analyze` | implemented | Turn crawl JSON into a Markdown TODO report and `*-fix-manifest.json` for agent orchestration |
 | `security-headers` | implemented | Verify HTTP security headers (CSP, HSTS, etc.) |
-| `dns` | implemented | Verify DNS records, SPF/DMARC, and domain ownership signals |
+| `dns` | implemented | Verify DNS records, SPF/DMARC, and domain ownership signals. SPF/DMARC missing-record warnings are skipped on Vercel/Netlify platform preview hostnames (`*.vercel.app`, `*.netlify.app`) |
 | `robots-txt` | implemented | Report robots.txt presence, sitemap directives, and crawl blocks |
 | `sitemap` | implemented | Verify sitemap exists and exactly matches crawled URLs (same hostname and path; follows sitemap index files; runs after crawl; seeds crawl with sitemap URLs) |
 | `lighthouse` | planned | Lighthouse performance, accessibility, and best-practices audits |
-| `redirect` | implemented | Always-on pipeline check (not a `--checks` registry id): probes the start URL for HTTP redirects, validates the apex ↔ www alias, and drives redirect-only mode (`dns`, `analyze`) |
+| `redirect` | implemented | Always-on pipeline check (not a `--checks` registry id): probes the start URL for HTTP redirects, validates the apex ↔ www alias (skipped on Vercel/Netlify platform preview hostnames), and drives redirect-only mode (`dns`, `analyze`) |
 
 ### Crawl check groups (Tier 1)
 
@@ -104,7 +104,10 @@ start URL returns an HTTP redirect (for example apex → www), flightcheck autom
 switches to **redirect-only mode**: it validates the redirect and skips crawl, sitemap,
 robots.txt, and security-headers checks. The redirect check also probes the alternate host
 (apex ↔ www): the non-canonical host must permanently redirect to the canonical host implied
-by the start URL (or its redirect target). Use `--checks crawl` to force a full crawl anyway.
+by the start URL (or its redirect target). That www-alias probe is skipped for Vercel and
+Netlify platform preview hostnames (`*.vercel.app`, `*.netlify.app`), and the DNS check
+likewise skips SPF/DMARC missing-record warnings on those hostnames. Use `--checks crawl`
+to force a full crawl anyway.
 
 Use `--checks` to run a subset. Add `--parallel` to run wave 1 checks concurrently.
 
