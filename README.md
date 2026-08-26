@@ -4,8 +4,8 @@
 
 Flightcheck crawls a site and checks what's wrong before you go live: missing meta tags,
 accessibility issues, weak security headers, DNS settings, robots.txt and sitemap mismatches,
-and more. The result is not a vague checklist, but structured output that both developers and
-AI agents can act on immediately.
+and more. The result is structured output that both developers and AI agents can use to get 
+started optimizing the site.
 
 ## How it works
 
@@ -15,7 +15,8 @@ AI agents can act on immediately.
    or per page.
 3. **🦾 Agent jobs** — for each fix package, Flightcheck generates a `prompt.md` with concrete
    instructions. AI agents can use these to propose targeted pull requests: one PR per package,
-   reviewable and verifiable.
+   reviewable and verifiable. The prompt are conservative: it's instructed not to commit/push/change
+   without developer consent.
 
 | Output | Audience | Purpose |
 | --- | --- | --- |
