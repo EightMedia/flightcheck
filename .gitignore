@@ -7,3 +7,4 @@ output/*
 !output/.gitkeep
 redirect-only-fix-manifest.json
 redirect-only-agent-jobs
+.DS_Store
