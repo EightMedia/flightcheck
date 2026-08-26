@@ -12,7 +12,7 @@ performance auditing.
 
 ## Goal
 
-Add the checks below as modular, exportable functions (see `docs/checks.md`) so they can:
+Add the checks below as modular, exportable functions (see `docs/check-api.md`) so they can:
 
 - Run from the CLI (`pnpm run flightcheck`)
 - Run independently via API endpoints in a consuming project
@@ -594,7 +594,7 @@ No browser required. Covers most SEO + best practices.
 | Image alt + static a11y crawl groups | crawl | `src/crawler/tier1Extractors.ts`, `schema.ts` | done |
 | Register checks + wave plan | infra | `types.ts`, `registry.ts`, `runner.ts` | done |
 | Analyze sections | report | `src/analyze/report.ts`, `src/analyze/reportTier1.ts` | done |
-| Tests + docs | | `*.test.ts`, `docs/checks.md` | done |
+| Tests + docs | | `*.test.ts`, `docs/check-api.md` | done |
 
 **Deliverable:**
 

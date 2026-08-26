@@ -1,138 +1,107 @@
-# Flightcheck Checks
+# What Flightcheck checks
 
-Flightcheck is built as a modular check system. Each check is a standalone exported
-function that can run on its own, be exposed as an API endpoint, or be orchestrated
-together by the CLI.
+Simple overview of everything Flightcheck looks at when it audits a site.
+Written for anyone who wants to know what is covered — no technical setup required.
 
-## Available checks
+For developers implementing or extending checks, see [check-api.md](./check-api.md).
 
-| ID | Status | Description |
-| --- | --- | --- |
-| `crawl` | implemented | Crawl pages and collect SEO, metadata, tracking, and security data |
-| `analyze` | implemented | Turn crawl JSON into a Markdown TODO report and `*-fix-manifest.json` for agent orchestration |
-| `security-headers` | implemented | Verify HTTP security headers (CSP, HSTS, etc.) |
-| `dns` | implemented | Verify DNS records, SPF/DMARC, and domain ownership signals. SPF/DMARC missing-record warnings are skipped on Vercel/Netlify platform preview hostnames (`*.vercel.app`, `*.netlify.app`) |
-| `robots-txt` | implemented | Report robots.txt presence, sitemap directives, and crawl blocks |
-| `sitemap` | implemented | Verify sitemap exists and exactly matches crawled URLs (same hostname and path; follows sitemap index files; runs after crawl; seeds crawl with sitemap URLs) |
-| `lighthouse` | planned | Lighthouse performance, accessibility, and best-practices audits |
-| `redirect` | implemented | Always-on pipeline check (not a `--checks` registry id): probes the start URL for HTTP redirects, validates the apex ↔ www alias (skipped on Vercel/Netlify platform preview hostnames), and drives redirect-only mode (`dns`, `analyze`) |
+## On every page (SEO & basics)
 
-### Crawl check groups (Tier 1)
+- Page title
+- Heading (h1)
+- Meta description
+- Robots meta (e.g. noindex / nofollow)
+- Template marker
+- Meta title
+- Character encoding (charset)
+- Language
+- Viewport (mobile-friendly)
+- Doctype
+- Canonical URL
+- Color scheme
+- Theme color
+- Main content landmark (`<main>` — exactly one)
 
-When crawling, these optional groups extend per-page extraction:
+## Sharing & social previews
 
-| Group | Status | Description |
-| --- | --- | --- |
-| `images` | implemented | Image alt text issues (missing, empty, generic); decoded filenames from `src`/`srcset`/`<picture>` and `/_next/image` |
-| `a11y-static` | implemented | Static accessibility hints (headings, labels, lang, tabindex) |
+- Open Graph title
+- Open Graph description
+- Open Graph image
+- Open Graph URL
+- Open Graph type
+- Open Graph site name
+- Twitter card type
+- Twitter title
+- Twitter description
+- Twitter image
 
-Use `--only images,a11y-static` or include them in the default crawl groups.
+## Icons
 
-See `docs/qc-checks-plan.md` for the full tiered roadmap:
+- Favicon
+- Other site icons
 
-- **Tier 0/1** — crawl + fetch (SEO, headers, DNS, links, robots, sitemap — no browser)
-- **Tier 2** — `a11y-axe` on 3–5 sampled URLs
-- **Tier 3** — optional `performance` (Lighthouse or PageSpeed API)
+## Tracking (detected if present)
 
-## Programmatic usage
+- Google Tag Manager
+- Google Analytics 4
+- Universal Analytics
+- Matomo
+- Facebook Pixel
+- Plausible
 
-Import from the package root or the checks subpath:
+## Images
 
-```typescript
-import { runChecks, runCrawlCheck, runAnalyzeCheck, listChecks } from "@eightmedia/flightcheck";
-// or
-import { runCheck, planCheckWaves } from "@eightmedia/flightcheck/checks";
-```
+- Missing image alt text
+- Empty image alt text
+- Generic / unhelpful image alt text
 
-Run the default pipeline (all implemented checks):
+## Accessibility (static checks)
 
-```typescript
-const { outputs, results } = await runChecks({
-  startUrl: "https://example.com",
-  crawl: { maxPages: 100 },
-  analyze: { errorsOnly: false },
-});
-```
+- Multiple h1 headings on one page
+- Skipped heading levels
+- Missing language on the page
+- Form fields without a label
+- Positive tabindex (keyboard focus order)
 
-Default checks: `crawl`, `security-headers`, `dns`, `robots-txt`, `sitemap`, `analyze`.
+## Security (secrets on the page)
 
-Run a single check:
+- Leaked API keys / secrets in page HTML
+- Leaked API keys / secrets in same-site JavaScript
 
-```typescript
-const crawl = await runCrawlCheck({ startUrl: "https://example.com" });
-const report = await runAnalyzeCheck({ records: crawl.records });
-```
+## Security headers (site-wide)
 
-Run independent Tier 1 checks in parallel:
+- HSTS (force HTTPS)
+- Content Security Policy
+- Clickjacking protection (X-Frame-Options or CSP)
+- X-Content-Type-Options (nosniff)
+- Referrer-Policy
+- Permissions-Policy
 
-```typescript
-await runChecks({
-  startUrl: "https://example.com",
-  checks: ["crawl", "security-headers", "dns", "robots-txt", "sitemap", "analyze"],
-  parallel: true,
-});
-```
+## Domain & redirects
 
-Pure analysis helpers (no network) are also exported for tests and API use:
+- Domain redirect (e.g. apex → www)
+- Redirect is permanent (301/308)
+- Redirect target is reachable
+- www and non-www both point to the same preferred host
+- SPF (email authentication)
+- DMARC (email authentication)
 
-```typescript
-import {
-  analyzeSecurityHeaders,
-  analyzeRobotsTxt,
-  analyzeDnsRecords,
-  analyzeSitemapCompare,
-} from "@eightmedia/flightcheck/checks";
-```
+## Search engines (robots & sitemap)
 
-Wave planning:
+- robots.txt exists
+- robots.txt is valid
+- robots.txt does not block the whole site
+- robots.txt lists a sitemap
+- Sitemap exists and is reachable
+- Sitemap is not empty
+- Sitemap URLs match the pages found on the site
+- Pages found on the site are listed in the sitemap
 
-- Wave 1 (parallel-capable): `crawl`, `lighthouse`, `security-headers`, `dns`, `robots-txt`
-- Wave 2 (after crawl): `sitemap`
-- Wave 3: `analyze` (uses crawl output when available)
+## Technology (informational)
 
-## CLI
+- Platform / framework / CMS / hosting / CDN fingerprints
 
-```bash
-pnpm run flightcheck -- https://example.com
-pnpm run flightcheck -- https://example.com --parallel
-pnpm run flightcheck -- https://example.com --checks crawl,analyze --parallel
-pnpm run flightcheck -- https://example.com --checks crawl --json-only
-```
+## Note on redirect-only runs
 
-By default, `flightcheck` runs all implemented checks including sitemap validation. When the
-start URL returns an HTTP redirect (for example apex → www), flightcheck automatically
-switches to **redirect-only mode**: it validates the redirect and skips crawl, sitemap,
-robots.txt, and security-headers checks. The redirect check also probes the alternate host
-(apex ↔ www): the non-canonical host must permanently redirect to the canonical host implied
-by the start URL (or its redirect target). That www-alias probe is skipped for Vercel and
-Netlify platform preview hostnames (`*.vercel.app`, `*.netlify.app`), and the DNS check
-likewise skips SPF/DMARC missing-record warnings on those hostnames. Use `--checks crawl`
-to force a full crawl anyway.
-
-Use `--checks` to run a subset. Add `--parallel` to run wave 1 checks concurrently.
-
-## Adding a new check
-
-1. Add the check ID to `CHECK_IDS` in `src/checks/types.ts`.
-2. Implement `runYourCheck()` in `src/checks/your-check.ts`.
-3. Register it in `src/checks/registry.ts` with `implemented: true`.
-4. Export it from `src/checks/index.ts`.
-5. Update `planCheckWaves()` if the check has special ordering rules.
-
-Each check should:
-
-- Accept typed input options
-- Return typed result data
-- Avoid coupling to CLI or filesystem when possible (allow in-memory results for API use)
-
-## API endpoint mapping
-
-In a consuming project, map checks to endpoints:
-
-- `POST /checks/crawl` → `runCrawlCheck`
-- `POST /checks/analyze` → `runAnalyzeCheck`
-- `POST /checks/run` → `runChecks`
-- `GET /checks` → `listChecks`
-
-This keeps one check per route and makes it straightforward to run checks in separate
-workers or threads.
+If the start URL only redirects (for example a domain move), Flightcheck skips most
+page checks and only covers redirects, DNS (SPF/DMARC), and the report.

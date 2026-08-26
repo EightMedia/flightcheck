@@ -53,9 +53,9 @@ pnpm run analyze -- ./flightcheck/20260618.1413-eight.nl-raw.json
 
 ## Documentation
 
-- `docs/tests.md` — plain-language list of everything Flightcheck tests
+- `docs/checks.md` — plain-language list of everything Flightcheck checks
+- `docs/check-api.md` — modular check API and extension guide
 - `docs/qc-checks-plan.md` — roadmap for full site QC checks
-- `docs/checks.md` — modular check API and extension guide
 - `docs/agent-fixes.md` — agent-jobs output (one PR per package) and prompt composition
 - `docs/crawler.md`
 - `docs/analyze.md`
