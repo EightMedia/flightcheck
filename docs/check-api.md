@@ -16,6 +16,7 @@ For a plain-language list of what is audited, see [checks.md](./checks.md).
 | `dns` | implemented | Verify DNS records, SPF/DMARC, and domain ownership signals. SPF/DMARC missing-record warnings are skipped on Vercel/Netlify platform preview hostnames (`*.vercel.app`, `*.netlify.app`) |
 | `robots-txt` | implemented | Report robots.txt presence, sitemap directives, and crawl blocks |
 | `sitemap` | implemented | Verify sitemap exists and exactly matches crawled URLs (same hostname and path; follows sitemap index files; runs after crawl; seeds crawl with sitemap URLs) |
+| `agent-ready` | implemented | AI agent discoverability: Content Signals, AI bot rules, llms.txt, Markdown negotiation, Link headers, well-known protocol cards |
 | `lighthouse` | planned | Lighthouse performance, accessibility, and best-practices audits |
 | `redirect` | implemented | Always-on pipeline check (not a `--checks` registry id): probes the start URL for HTTP redirects, validates the apex ↔ www alias (skipped on Vercel/Netlify platform preview hostnames), and drives redirect-only mode (`dns`, `analyze`) |
 
@@ -56,7 +57,7 @@ const { outputs, results } = await runChecks({
 });
 ```
 
-Default checks: `crawl`, `security-headers`, `dns`, `robots-txt`, `sitemap`, `analyze`.
+Default checks: `crawl`, `security-headers`, `dns`, `robots-txt`, `sitemap`, `agent-ready`, `analyze`.
 
 Run a single check:
 
@@ -70,7 +71,7 @@ Run independent Tier 1 checks in parallel:
 ```typescript
 await runChecks({
   startUrl: "https://example.com",
-  checks: ["crawl", "security-headers", "dns", "robots-txt", "sitemap", "analyze"],
+  checks: ["crawl", "security-headers", "dns", "robots-txt", "sitemap", "agent-ready", "analyze"],
   parallel: true,
 });
 ```
@@ -83,12 +84,13 @@ import {
   analyzeRobotsTxt,
   analyzeDnsRecords,
   analyzeSitemapCompare,
+  analyzeAgentReady,
 } from "@eightmedia/flightcheck/checks";
 ```
 
 Wave planning:
 
-- Wave 1 (parallel-capable): `crawl`, `lighthouse`, `security-headers`, `dns`, `robots-txt`
+- Wave 1 (parallel-capable): `crawl`, `lighthouse`, `security-headers`, `dns`, `robots-txt`, `agent-ready`
 - Wave 2 (after crawl): `sitemap`
 - Wave 3: `analyze` (uses crawl output when available)
 

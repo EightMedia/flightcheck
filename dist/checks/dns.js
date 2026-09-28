@@ -1,4 +1,5 @@
 import * as nodeDns from "node:dns";
+import { isPlatformPreviewHostname } from "../crawler/urlUtils.js";
 import { issue } from "./issues.js";
 function parseHostname(input) {
     try {
@@ -53,10 +54,11 @@ export async function analyzeDnsRecords(input) {
     const flatTxt = flattenTxtRecords(txt);
     const spf = findSpf(flatTxt);
     const dmarc = (await resolveDmarc(hostname)) ?? findDmarc(hostname, flatTxt);
-    if (!spf) {
+    const skipMailAuthIssues = isPlatformPreviewHostname(hostname);
+    if (!skipMailAuthIssues && !spf) {
         issues.push(issue("missing-spf", "warning", "No SPF TXT record found."));
     }
-    if (!dmarc) {
+    if (!skipMailAuthIssues && !dmarc) {
         issues.push(issue("missing-dmarc", "warning", "No DMARC TXT record found."));
     }
     return {

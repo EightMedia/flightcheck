@@ -137,6 +137,7 @@ that returned HTTP 200 (non-200 URLs go to `REVIEW.md`).
 | `cms-content` | cms | Editorial content (descriptions, image alt) — **only when a CMS is detected** | CMS dataset (approval-gated) |
 | `infra-headers` | hosting | Security headers | Site or infra repo |
 | `infra-robots-sitemap` | repo | Robots.txt & sitemap | Site repo |
+| `agent-ready` | repo | Agent readiness (llms.txt, Content Signals, markdown negotiation, Link headers) | Site repo |
 | `infra-redirect` | hosting | Domain redirect config | Hosting/infra |
 | `infra-dns` | dns | SPF/DMARC etc. | Registrar / DNS panel (manual) |
 | `secrets` | manual | Exposed secrets — key rotation | Manual — not auto-fixed |

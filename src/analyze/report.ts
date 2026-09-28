@@ -1,5 +1,6 @@
 import { z } from "zod";
 import {
+  buildAgentReadySection,
   buildDnsSection,
   buildRedirectSection,
   buildRobotsAndSitemapSection,
@@ -1007,6 +1008,7 @@ export async function buildMarkdown(
     if (tier1.robotsTxt || tier1.sitemap) {
       infraLines.push(...buildRobotsAndSitemapSection(tier1.robotsTxt, tier1.sitemap));
     }
+    if (tier1.agentReady) infraLines.push(...buildAgentReadySection(tier1.agentReady));
   }
 
   const templatesWithFixes = [...templateGroups.entries()]

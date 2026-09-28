@@ -97,6 +97,15 @@ For developers implementing or extending checks, see [check-api.md](./check-api.
 - Sitemap URLs match the pages found on the site
 - Pages found on the site are listed in the sitemap
 
+## Agent readiness
+
+- Content Signals in robots.txt (`ai-train` / `search` / `ai-input`)
+- Explicit AI bot User-agent rules (e.g. GPTBot, ClaudeBot)
+- llms.txt overview at `/llms.txt`
+- Markdown content negotiation (`Accept: text/markdown`)
+- Agent-useful Link response headers on the homepage
+- Well-known protocol discovery (MCP, Agent Skills, API Catalog, ARD, A2A) — informational
+
 ## Technology (informational)
 
 - Platform / framework / CMS / hosting / CDN fingerprints

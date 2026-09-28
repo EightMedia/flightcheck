@@ -1,3 +1,4 @@
+import { runAgentReadyCheck } from "./agent-ready.js";
 import { runAnalyzeCheck } from "./analyze.js";
 import { runCrawlCheck } from "./crawl.js";
 import { runDnsCheck } from "./dns.js";
@@ -65,6 +66,7 @@ export const CHECK_DEFINITIONS = {
                         dns: context.outputs.dns,
                         robotsTxt: context.outputs.robotsTxt,
                         sitemap: context.outputs.sitemap,
+                        agentReady: context.outputs.agentReady,
                         ...context.options.analyze?.tier1,
                     },
                     redirectOnly,
@@ -222,6 +224,34 @@ export const CHECK_DEFINITIONS = {
             catch (error) {
                 return {
                     id: "sitemap",
+                    status: "failure",
+                    error: error instanceof Error ? error.message : String(error),
+                    durationMs: Date.now() - startedAt,
+                };
+            }
+        },
+    },
+    "agent-ready": {
+        id: "agent-ready",
+        name: "Agent readiness",
+        description: "Check AI agent discoverability: Content Signals, AI bot rules, llms.txt, Markdown negotiation, Link headers, and well-known protocol cards.",
+        dependencies: [],
+        implemented: true,
+        run: async (context) => {
+            const startedAt = Date.now();
+            try {
+                const data = await runAgentReadyCheck(context.startUrl);
+                context.outputs.agentReady = data;
+                return {
+                    id: "agent-ready",
+                    status: "success",
+                    data,
+                    durationMs: Date.now() - startedAt,
+                };
+            }
+            catch (error) {
+                return {
+                    id: "agent-ready",
                     status: "failure",
                     error: error instanceof Error ? error.message : String(error),
                     durationMs: Date.now() - startedAt,

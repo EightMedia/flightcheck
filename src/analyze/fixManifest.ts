@@ -666,6 +666,31 @@ function buildWorkPackages(
     });
   }
 
+  if (tier1.agentReady && tier1.agentReady.issues.length > 0) {
+    packages.push({
+      id: "agent-ready",
+      promptId: "agent-ready",
+      fixSurface: "repo",
+      priority: 42,
+      scope: "origin",
+      issues: tier1.agentReady.issues.map((issue) => issueFromCheck(issue, "origin")),
+      locationDiscovery: "search-codebase",
+      searchHints: [
+        "public/robots.txt",
+        "llms.txt",
+        "Content-Signal",
+        "Accept: text/markdown",
+        "middleware",
+        "Link header",
+        "/.well-known/mcp/server-card.json",
+        "/.well-known/agent-skills/index.json",
+      ],
+      mcpServers: [],
+      prTitle: "feat(agent): improve agent readiness discoverability",
+      autoFixable: true,
+    });
+  }
+
   return packages.sort((a, b) => a.priority - b.priority);
 }
 

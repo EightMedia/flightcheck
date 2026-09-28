@@ -307,6 +307,53 @@ describe("buildMarkdown tier 1 infra sections", () => {
     expect(markdown).toContain("- **Infra:** 2 issue(s) — DNS (1 issue(s)), security headers (1 issue(s)), robots.txt (0 issue(s))");
   });
 
+  it("renders agent readiness section", async () => {
+    const markdown = await buildMarkdown(
+      "report.json",
+      [makeRecord()],
+      false,
+      {
+        agentReady: {
+          url: "https://example.com",
+          findings: {
+            robotsTxt: {
+              status: 200,
+              hasContentSignals: false,
+              contentSignals: [],
+              aiBotUserAgents: [],
+            },
+            llmsTxt: { url: "https://example.com/llms.txt", status: 404, hasTitle: false },
+            markdownNegotiation: {
+              url: "https://example.com",
+              status: 200,
+              contentType: "text/html",
+              supportsMarkdown: false,
+            },
+            linkHeaders: { relations: [] },
+            wellKnown: {
+              mcpServerCard: false,
+              agentSkills: false,
+              apiCatalog: false,
+              ard: false,
+              a2aAgentCard: false,
+            },
+          },
+          issues: [
+            {
+              id: "agent-missing-llms-txt",
+              severity: "warning",
+              message: "llms.txt is missing or not a plain-text overview at /llms.txt.",
+            },
+          ],
+        },
+      }
+    );
+
+    expect(markdown).toContain("## Agent readiness");
+    expect(markdown).toContain("**WARNING** llms.txt is missing");
+    expect(markdown).toContain("agent readiness (1 issue(s))");
+  });
+
   it("renders stack section from crawl, headers, and tracking data", async () => {
     const records = [
       makeRecord({
