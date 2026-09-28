@@ -41,7 +41,7 @@ This writes timestamped files in `./flightcheck/`, for example:
 - `./flightcheck/20260618.1413-eight.nl-agent-jobs/` — prompts per fix package
 
 By default this runs all implemented checks: crawl, security headers, DNS, robots.txt,
-sitemap validation, and analyze. If the start URL is a domain redirect, only redirect
+sitemap validation, agent readiness, and analyze. If the start URL is a domain redirect, only redirect
 validation, DNS, and analyze run. Use `--checks crawl` to force a full crawl on redirect
 domains. Use `--checks` for a subset, or `--json-only` for crawl JSON only.
 
@@ -55,11 +55,14 @@ pnpm run analyze -- ./flightcheck/20260618.1413-eight.nl-raw.json
 
 - `docs/checks.md` — plain-language list of everything Flightcheck checks
 - `docs/check-api.md` — modular check API and extension guide
+- `docs/agent-ready.md` — AI agent readiness checks (llms.txt, markdown negotiation, …)
 - `docs/qc-checks-plan.md` — roadmap for full site QC checks
 - `docs/agent-fixes.md` — agent-jobs output (one PR per package) and prompt composition
 - `docs/crawler.md`
 - `docs/analyze.md`
 - `docs/stack.md`
+- `docs/changelog/` — branch changelogs
+- `docs/index.md` — documentation index
 
 ## License
 

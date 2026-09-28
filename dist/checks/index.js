@@ -3,9 +3,10 @@ import { CHECK_DEFINITIONS, getCheckDefinition, listChecks, listImplementedCheck
 import { planCheckWaves, runCheck, runChecks } from "./runner.js";
 import { runAnalyzeCheck } from "./analyze.js";
 import { runCrawlCheck, prepareCrawlSeedUrls } from "./crawl.js";
+import { analyzeAgentReady, runAgentReadyCheck } from "./agent-ready.js";
 import { analyzeDnsRecords, runDnsCheck } from "./dns.js";
 import { analyzeRobotsTxt, runRobotsTxtCheck } from "./robots-txt.js";
 import { analyzeSecurityHeaders, runSecurityHeadersCheck } from "./security-headers.js";
 import { analyzeSitemapCompare, runSitemapCheck } from "./sitemap.js";
-import { analyzeRedirect, analyzeWwwAliasRedirect, buildAlternateHostUrl, resolveCanonicalUrl, resolveChecksForRedirect, runRedirectCheck, toggleWwwHostname, } from "./redirect.js";
-export { CHECK_IDS, CHECK_DEFINITIONS, DEFAULT_CHECK_IDS, getCheckDefinition, listChecks, listImplementedChecks, planCheckWaves, runAnalyzeCheck, runCheck, runChecks, runCrawlCheck, prepareCrawlSeedUrls, analyzeDnsRecords, runDnsCheck, analyzeRobotsTxt, runRobotsTxtCheck, analyzeSecurityHeaders, runSecurityHeadersCheck, analyzeSitemapCompare, runSitemapCheck, analyzeRedirect, analyzeWwwAliasRedirect, buildAlternateHostUrl, resolveCanonicalUrl, resolveChecksForRedirect, runRedirectCheck, toggleWwwHostname, };
+import { analyzeRedirect, analyzeWwwAliasRedirect, buildAlternateHostUrl, resolveCanonicalUrl, resolveChecksForRedirect, runRedirectCheck, shouldCheckWwwAlias, toggleWwwHostname, } from "./redirect.js";
+export { CHECK_IDS, CHECK_DEFINITIONS, DEFAULT_CHECK_IDS, getCheckDefinition, listChecks, listImplementedChecks, planCheckWaves, runAnalyzeCheck, runCheck, runChecks, runCrawlCheck, prepareCrawlSeedUrls, analyzeAgentReady, runAgentReadyCheck, analyzeDnsRecords, runDnsCheck, analyzeRobotsTxt, runRobotsTxtCheck, analyzeSecurityHeaders, runSecurityHeadersCheck, analyzeSitemapCompare, runSitemapCheck, analyzeRedirect, analyzeWwwAliasRedirect, buildAlternateHostUrl, resolveCanonicalUrl, resolveChecksForRedirect, runRedirectCheck, shouldCheckWwwAlias, toggleWwwHostname, };

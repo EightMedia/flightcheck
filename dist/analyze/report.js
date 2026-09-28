@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { buildDnsSection, buildRedirectSection, buildRobotsAndSitemapSection, buildSecurityHeadersSection, buildIssuesSummarySection, } from "./reportTier1.js";
+import { buildAgentReadySection, buildDnsSection, buildRedirectSection, buildRobotsAndSitemapSection, buildSecurityHeadersSection, buildIssuesSummarySection, } from "./reportTier1.js";
 import { aggregateStackFromRecords, buildStackSection } from "./stack.js";
 const iconSchema = z.object({
     rel: z.string(),
@@ -571,6 +571,15 @@ function buildCoverageSection(allItems, totalPages, siteWideFields, siteWideWarn
     }
     return lines;
 }
+function formatTemplatesThatNeedFixes(templatesWithFixes, templateGroupCount, totalPages) {
+    if (templatesWithFixes.length > 0) {
+        return templatesWithFixes.map((template) => `\`${template}\``).join(", ");
+    }
+    if (totalPages > 0 && templateGroupCount === 0) {
+        return "Unavailable, template meta missing";
+    }
+    return "none";
+}
 function buildHowToUseSection(redirectOnly) {
     const lines = ["## How to use this report", ""];
     if (redirectOnly) {
@@ -790,6 +799,8 @@ export async function buildMarkdown(inputPath, records, includeOnlyErrors, tier1
         if (tier1.robotsTxt || tier1.sitemap) {
             infraLines.push(...buildRobotsAndSitemapSection(tier1.robotsTxt, tier1.sitemap));
         }
+        if (tier1.agentReady)
+            infraLines.push(...buildAgentReadySection(tier1.agentReady));
     }
     const templatesWithFixes = [...templateGroups.entries()]
         .filter(([, items]) => buildScopedFixTodos(items, "template", siteWideFields, siteWideWarningKeys, siteWideTier1Keys).length > 0)
@@ -817,7 +828,7 @@ export async function buildMarkdown(inputPath, records, includeOnlyErrors, tier1
         `- Pages analyzed: ${totalPages}`,
         `- Pages with issues: ${pagesWithIssues}`,
         `- Site-wide fixes: ${siteWideFixTodos.length}`,
-        `- Templates that need fixes: ${templatesWithFixes.length > 0 ? templatesWithFixes.map((template) => `\`${template}\``).join(", ") : "none"}`,
+        `- Templates that need fixes: ${formatTemplatesThatNeedFixes(templatesWithFixes, templateGroups.size, totalPages)}`,
         `- Pages with page-specific fixes: ${pageSpecificCount}`,
         "",
         ...issuesSummarySection,

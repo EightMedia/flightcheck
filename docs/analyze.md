@@ -66,7 +66,7 @@ Categories:
 
 | Category | Source | Examples |
 | --- | --- | --- |
-| **Infra** | Tier 1 checks | Redirect, DNS, security headers, robots.txt, sitemap |
+| **Infra** | Tier 1 checks | Redirect, DNS, security headers, robots.txt, sitemap, agent readiness |
 | **SEO** | Crawl metadata | Missing title, meta, OG, Twitter, canonical, favicon |
 | **A11y** | Crawl groups `images` + `a11y-static` | Image alt, heading hierarchy, form labels, lang, tabindex |
 | **Best practices** | Crawl warnings | Main landmark, noindex/nofollow, template meta tag |
@@ -119,6 +119,12 @@ Result of the `robots-txt` and `sitemap` checks (skipped in redirect-only mode).
 Sitemap comparison requires an exact match between sitemap and crawl URLs, including hostname
 (apex vs www). Each mismatch gets `critical` severity, with tips about the likely cause
 (for example wrong hostname in the sitemap or a failing sitemap build/cron job).
+
+## Agent readiness
+
+Result of the `agent-ready` check (skipped in redirect-only mode): Content Signals and AI bot
+rules in robots.txt, `/llms.txt`, Markdown content negotiation, homepage Link headers, and
+optional well-known protocol discovery endpoints. See [agent-ready.md](./agent-ready.md).
 
 ## Domain redirect
 

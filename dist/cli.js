@@ -21,7 +21,7 @@ async function main() {
         .option("--json-only", "Skip Markdown TODO report generation", false)
         .option("--errors-only", "Include only records with errors or missing attributes in the report", false)
         .option("--parallel", "Run independent checks in parallel", false)
-        .option("--checks <ids>", "Comma-separated checks to run (crawl,analyze,lighthouse,security-headers,dns,robots-txt,sitemap)")
+        .option("--checks <ids>", "Comma-separated checks to run (crawl,analyze,lighthouse,security-headers,dns,robots-txt,sitemap,agent-ready)")
         .option("--max-pages <n>", "Maximum number of pages", String(DEFAULT_MAX_PAGES))
         .option("--delay-ms <n>", "Delay between requests in ms", String(DEFAULT_DELAY_MS))
         .option("--timeout-ms <n>", "Request timeout in ms", String(DEFAULT_TIMEOUT_MS))

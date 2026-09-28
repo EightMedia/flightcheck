@@ -1,15 +1,32 @@
 import type { VerificationRecord } from "../crawler/schema.js";
+import type { AgentReadyCheckResult } from "./agent-ready.js";
 import type { DnsCheckResult } from "./dns.js";
 import type { RedirectCheckResult } from "./redirect.js";
 import type { RobotsTxtCheckResult } from "./robots-txt.js";
 import type { SecurityHeadersCheckResult } from "./security-headers.js";
 import type { SitemapCheckResult } from "./sitemap.js";
 
-export const CHECK_IDS = ["crawl", "analyze", "lighthouse", "security-headers", "dns", "robots-txt", "sitemap"] as const;
+export const CHECK_IDS = [
+  "crawl",
+  "analyze",
+  "lighthouse",
+  "security-headers",
+  "dns",
+  "robots-txt",
+  "sitemap",
+  "agent-ready",
+] as const;
 
 export type CheckId = (typeof CHECK_IDS)[number];
 
-export type ImplementedCheckId = "crawl" | "analyze" | "security-headers" | "dns" | "robots-txt" | "sitemap";
+export type ImplementedCheckId =
+  | "crawl"
+  | "analyze"
+  | "security-headers"
+  | "dns"
+  | "robots-txt"
+  | "sitemap"
+  | "agent-ready";
 
 export type PlannedCheckId = Exclude<CheckId, ImplementedCheckId>;
 
@@ -20,6 +37,7 @@ export const DEFAULT_CHECK_IDS: CheckId[] = [
   "dns",
   "robots-txt",
   "sitemap",
+  "agent-ready",
   "analyze",
 ];
 
@@ -59,6 +77,7 @@ export type CheckOutputs = {
   dns?: DnsCheckResult;
   robotsTxt?: RobotsTxtCheckResult;
   sitemap?: SitemapCheckResult;
+  agentReady?: AgentReadyCheckResult;
 };
 
 export type CheckDefinition<TData = unknown> = {

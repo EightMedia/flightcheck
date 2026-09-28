@@ -4,7 +4,7 @@ import { DEFAULT_CHECK_IDS } from "./types.js";
 export function planCheckWaves(requestedChecks) {
     const requested = new Set(requestedChecks);
     const waves = [];
-    const independent = ["crawl", "lighthouse", "security-headers", "dns", "robots-txt"].filter((id) => requested.has(id));
+    const independent = ["crawl", "lighthouse", "security-headers", "dns", "robots-txt", "agent-ready"].filter((id) => requested.has(id));
     if (independent.length > 0) {
         waves.push(independent);
     }

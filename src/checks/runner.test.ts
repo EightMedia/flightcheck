@@ -23,7 +23,7 @@ describe("planCheckWaves", () => {
 
   it("plans waves for the default check set", () => {
     expect(planCheckWaves(DEFAULT_CHECK_IDS)).toEqual([
-      ["crawl", "security-headers", "dns", "robots-txt"],
+      ["crawl", "security-headers", "dns", "robots-txt", "agent-ready"],
       ["sitemap"],
       ["analyze"],
     ]);
@@ -40,7 +40,15 @@ describe("planCheckWaves", () => {
 describe("check registry", () => {
   it("lists implemented and planned checks separately", () => {
     const implemented = listImplementedChecks().map((check) => check.id);
-    expect(implemented).toEqual(["crawl", "analyze", "security-headers", "dns", "robots-txt", "sitemap"]);
+    expect(implemented).toEqual([
+      "crawl",
+      "analyze",
+      "security-headers",
+      "dns",
+      "robots-txt",
+      "sitemap",
+      "agent-ready",
+    ]);
 
     const planned = listChecks().filter((check) => !check.implemented).map((check) => check.id);
     expect(planned).toEqual(["lighthouse"]);

@@ -6,7 +6,7 @@ image alt text, broken links, accessibility, security headers, DNS, and optional
 performance auditing.
 
 **Status:** in progress — Phase 1 shipped, Phase 2 mostly shipped  
-**Last updated:** 2026-06-23
+**Last updated:** 2026-09-28
 
 ---
 
@@ -559,7 +559,7 @@ type FlightcheckReport = {
 ```
 
 The **Issues summary** and Tier 1 infra report sections (redirect, DNS, security headers,
-robots.txt, sitemap) are implemented in `src/analyze/reportTier1.ts` and wired into the main
+robots.txt, sitemap, agent readiness) are implemented in `src/analyze/reportTier1.ts` and wired into the main
 report via `src/analyze/report.ts`.
 
 Report sections (top to bottom):
@@ -570,13 +570,14 @@ Report sections (top to bottom):
 4. Security headers
 5. Stack (informational)
 6. Robots.txt + sitemap
-7. Legal pages
-8. Accessibility (axe) — Tier 2
-9. Performance — Tier 3, if run
-10. Fix site-wide
-11. Fix in templates
-12. Fix per page (hreflang, images, static a11y, broken links)
-13. Issue coverage
+7. Agent readiness
+8. Legal pages
+9. Accessibility (axe) — Tier 2
+10. Performance — Tier 3, if run
+11. Fix site-wide
+12. Fix in templates
+13. Fix per page (hreflang, images, static a11y, broken links)
+14. Issue coverage
 
 ---
 
@@ -610,6 +611,7 @@ pnpm run flightcheck -- https://example.com --checks crawl,security-headers,dns,
 | --- | --- | --- | --- |
 | Stack detection | crawl + aggregate | `src/crawler/stackDetect.ts`, `src/analyze/stack.ts` | done |
 | Sitemap compare | standalone | `src/checks/sitemap.ts` | done |
+| Agent readiness | standalone | `src/checks/agent-ready.ts` | done |
 | Image alt + static a11y | crawl | `src/crawler/tier1Extractors.ts` | done |
 | Broken links group | crawl | `src/crawler/links.ts` | not implemented |
 | Hreflang group | crawl | `src/crawler/hreflang.ts` | not implemented |

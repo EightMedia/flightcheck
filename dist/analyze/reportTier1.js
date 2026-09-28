@@ -151,12 +151,53 @@ export function buildRobotsAndSitemapSection(robotsTxt, sitemap) {
         lines.push(...buildSitemapSection(sitemap));
     return lines;
 }
+export function buildAgentReadySection(result) {
+    const { findings } = result;
+    const lines = [
+        "## Agent readiness",
+        "",
+        `- Checked: \`${result.url}\``,
+        `- Content Signals: ${findings.robotsTxt.hasContentSignals ? "yes" : "no"}`,
+    ];
+    if (findings.robotsTxt.contentSignals.length > 0) {
+        lines.push(`- Content-Signal values: ${findings.robotsTxt.contentSignals.map((value) => `\`${value}\``).join(", ")}`);
+    }
+    if (findings.robotsTxt.aiBotUserAgents.length > 0) {
+        lines.push(`- AI bot User-agent rules: ${findings.robotsTxt.aiBotUserAgents.map((bot) => `\`${bot}\``).join(", ")}`);
+    }
+    else {
+        lines.push("- AI bot User-agent rules: none");
+    }
+    lines.push(`- llms.txt: \`${findings.llmsTxt.url}\` (status \`${findings.llmsTxt.status ?? "unreachable"}\`)`, `- Markdown negotiation: ${findings.markdownNegotiation.supportsMarkdown ? "yes" : "no"}` +
+        (findings.markdownNegotiation.contentType
+            ? ` (\`${findings.markdownNegotiation.contentType}\`)`
+            : ""), `- Agent Link relations: ${findings.linkHeaders.relations.length > 0
+        ? findings.linkHeaders.relations.map((rel) => `\`${rel}\``).join(", ")
+        : "none"}`);
+    const wellKnownBits = [
+        findings.wellKnown.mcpServerCard ? "MCP Server Card" : null,
+        findings.wellKnown.agentSkills ? "Agent Skills" : null,
+        findings.wellKnown.apiCatalog ? "API Catalog" : null,
+        findings.wellKnown.ard ? "ARD" : null,
+        findings.wellKnown.a2aAgentCard ? "A2A Agent Card" : null,
+    ].filter(Boolean);
+    lines.push(`- Protocol discovery: ${wellKnownBits.length > 0 ? wellKnownBits.join(", ") : "none"}`, "");
+    if (result.issues.length === 0) {
+        lines.push("- No agent readiness issues found.");
+    }
+    else {
+        lines.push(...result.issues.map(issueTodo));
+    }
+    lines.push("");
+    return lines;
+}
 export function countTier1InfraIssues(tier1) {
     return ((tier1.redirect?.issues.length ?? 0) +
         (tier1.dns?.issues.length ?? 0) +
         (tier1.securityHeaders?.issues.length ?? 0) +
         (tier1.robotsTxt?.issues.length ?? 0) +
-        (tier1.sitemap?.issues.length ?? 0));
+        (tier1.sitemap?.issues.length ?? 0) +
+        (tier1.agentReady?.issues.length ?? 0));
 }
 function buildInfraSummaryParts(tier1, redirectOnly) {
     const parts = [];
@@ -177,6 +218,9 @@ function buildInfraSummaryParts(tier1, redirectOnly) {
     }
     if (tier1.sitemap) {
         parts.push(`sitemap (${tier1.sitemap.issues.length} issue(s))`);
+    }
+    if (tier1.agentReady) {
+        parts.push(`agent readiness (${tier1.agentReady.issues.length} issue(s))`);
     }
     return parts;
 }

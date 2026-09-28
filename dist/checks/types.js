@@ -1,4 +1,13 @@
-export const CHECK_IDS = ["crawl", "analyze", "lighthouse", "security-headers", "dns", "robots-txt", "sitemap"];
+export const CHECK_IDS = [
+    "crawl",
+    "analyze",
+    "lighthouse",
+    "security-headers",
+    "dns",
+    "robots-txt",
+    "sitemap",
+    "agent-ready",
+];
 /** Default pipeline: all implemented checks (Tier 1 infra + crawl + analyze). */
 export const DEFAULT_CHECK_IDS = [
     "crawl",
@@ -6,5 +15,6 @@ export const DEFAULT_CHECK_IDS = [
     "dns",
     "robots-txt",
     "sitemap",
+    "agent-ready",
     "analyze",
 ];

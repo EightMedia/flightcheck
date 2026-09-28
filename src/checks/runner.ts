@@ -12,9 +12,9 @@ export function planCheckWaves(requestedChecks: CheckId[]): CheckId[][] {
   const requested = new Set(requestedChecks);
   const waves: CheckId[][] = [];
 
-  const independent = (["crawl", "lighthouse", "security-headers", "dns", "robots-txt"] as CheckId[]).filter((id) =>
-    requested.has(id)
-  );
+  const independent = (
+    ["crawl", "lighthouse", "security-headers", "dns", "robots-txt", "agent-ready"] as CheckId[]
+  ).filter((id) => requested.has(id));
   if (independent.length > 0) {
     waves.push(independent);
   }
