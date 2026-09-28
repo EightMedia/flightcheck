@@ -1,6 +1,16 @@
 export function sleep(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
 }
+/** Vercel / Netlify platform hostnames (*.vercel.app, *.netlify.app) — not custom domains. */
+const PLATFORM_PREVIEW_SUFFIXES = [".vercel.app", ".netlify.app"];
+/**
+ * True for Vercel or Netlify platform default/preview hostnames.
+ * Custom production domains mapped onto those platforms return false.
+ */
+export function isPlatformPreviewHostname(hostname) {
+    const lower = hostname.toLowerCase();
+    return PLATFORM_PREVIEW_SUFFIXES.some((suffix) => lower === suffix.slice(1) || lower.endsWith(suffix));
+}
 export function isHttpUrl(urlString) {
     try {
         const url = new URL(urlString);

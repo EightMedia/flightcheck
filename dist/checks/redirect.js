@@ -1,5 +1,5 @@
 import { DEFAULT_TIMEOUT_MS, DEFAULT_USER_AGENT } from "../crawler/defaults.js";
-import { normalizeUrl } from "../crawler/urlUtils.js";
+import { isPlatformPreviewHostname, normalizeUrl } from "../crawler/urlUtils.js";
 import { issue } from "./issues.js";
 import { DEFAULT_CHECK_IDS } from "./types.js";
 export const REDIRECT_STATUS_CODES = new Set([301, 302, 303, 307, 308]);
@@ -19,12 +19,14 @@ export function resolveCanonicalUrl(startUrl, probe) {
 function hostnameFromUrl(url) {
     return new URL(url).hostname.toLowerCase();
 }
-function shouldCheckWwwAlias(hostname) {
+export function shouldCheckWwwAlias(hostname) {
     if (hostname === "localhost")
         return false;
     if (/^\d+\.\d+\.\d+\.\d+$/.test(hostname))
         return false;
     if (hostname.includes(":"))
+        return false;
+    if (isPlatformPreviewHostname(hostname))
         return false;
     return true;
 }
