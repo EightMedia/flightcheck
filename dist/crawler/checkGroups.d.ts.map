@@ -1,0 +1,1 @@
+{"version":3,"file":"checkGroups.d.ts","sourceRoot":"","sources":["../../src/crawler/checkGroups.ts"],"names":[],"mappings":"AAAA,eAAO,MAAM,YAAY,gGAAiG,CAAC;AAE3H,MAAM,MAAM,UAAU,GAAG,CAAC,OAAO,YAAY,CAAC,CAAC,MAAM,CAAC,CAAC;AAmBvD,wBAAgB,mBAAmB,CAAC,IAAI,EAAE;IAAE,IAAI,CAAC,EAAE,MAAM,CAAC;IAAC,IAAI,CAAC,EAAE,MAAM,CAAA;CAAE,GAAG,GAAG,CAAC,UAAU,CAAC,CAY3F"}

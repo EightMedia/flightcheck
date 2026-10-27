@@ -1,6 +1,6 @@
 # Flightcheck
 
-Pre-launch website audit for Eight sites.
+Pre-launch website audit CLI and library.
 
 Flightcheck crawls a site and checks what is wrong before go-live: missing meta tags,
 accessibility issues, weak security headers, DNS settings, robots.txt and sitemap
@@ -9,6 +9,20 @@ mismatches, exposed secrets, and more. Every run produces:
 - crawl data (`*-raw.json`)
 - a structured report (`*-report.json`) — analysis facts + findings
 - a plain-language Markdown report (`*-report.md`) rendered from that JSON
+
+## Install
+
+```bash
+pnpm add -g @eightmedia/flightcheck
+# or: npm install -g @eightmedia/flightcheck
+```
+
+Or run without installing:
+
+```bash
+pnpm dlx @eightmedia/flightcheck https://example.com
+# or: npx @eightmedia/flightcheck https://example.com
+```
 
 ## How it works
 
@@ -31,15 +45,15 @@ See [docs/analyze.md](docs/analyze.md) for the report schema.
 ## Quick start
 
 ```bash
-pnpm install
-pnpm run flightcheck -- https://example.com
+pnpm add -D @eightmedia/flightcheck
+pnpm exec flightcheck https://example.com
 ```
 
 This writes timestamped files in `./flightcheck/`, for example:
 
-- `./flightcheck/20260618.1413-eight.nl-raw.json`
-- `./flightcheck/20260618.1413-eight.nl-report.json`
-- `./flightcheck/20260618.1413-eight.nl-report.md`
+- `./flightcheck/20260618.1413-example.com-raw.json`
+- `./flightcheck/20260618.1413-example.com-report.json`
+- `./flightcheck/20260618.1413-example.com-report.md`
 
 By default this runs all implemented checks: crawl, security headers, DNS, robots.txt,
 sitemap, agent readiness, and analyze. If the start URL is a domain redirect, only
@@ -49,7 +63,7 @@ redirect domains. Use `--checks` for a subset, or `--json-only` for crawl JSON o
 Re-analyze an existing crawl without re-crawling:
 
 ```bash
-pnpm run analyze -- ./flightcheck/20260618.1413-eight.nl-raw.json
+pnpm exec flightcheck-analyze ./flightcheck/20260618.1413-example.com-raw.json
 ```
 
 ## Documentation
@@ -61,7 +75,7 @@ pnpm run analyze -- ./flightcheck/20260618.1413-eight.nl-raw.json
 - [Stack detection](docs/stack.md)
 - [Agent readiness](docs/agent-ready.md) — llms.txt, markdown negotiation, …
 - [QC checks plan](docs/qc-checks-plan.md) — roadmap
-- [Docs index](docs/index.md) · [Changelog](docs/changelog/)
+- [Docs index](docs/index.md) · [Changelog](CHANGELOG.md)
 
 ## Programmatic API
 
@@ -74,6 +88,15 @@ const { outputs } = await runChecks({
 
 const report = outputs.analyze?.report;
 // report.analysis.stack, report.findings, …
+```
+
+## Development
+
+```bash
+nvm use   # see .nvmrc
+pnpm install
+pnpm test
+pnpm build
 ```
 
 ## License

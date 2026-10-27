@@ -1,44 +1,74 @@
 {
   "name": "@eightmedia/flightcheck",
   "version": "0.1.0",
-  "type": "module",
+  "description": "Pre-launch website audit: crawl SEO/a11y/security checks and emit structured JSON + Markdown reports.",
   "license": "GPL-3.0",
-  "description": "Website pre-launch crawler: verifies SEO/metadata/tracking and scans for exposed API keys and secrets.",
+  "type": "module",
+  "author": "EightMedia <info@eight.nl>",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/EightMedia/flightcheck.git"
   },
+  "bugs": {
+    "url": "https://github.com/EightMedia/flightcheck/issues"
+  },
+  "homepage": "https://github.com/EightMedia/flightcheck#readme",
+  "keywords": [
+    "flightcheck",
+    "crawler",
+    "seo",
+    "accessibility",
+    "security",
+    "audit",
+    "pre-launch",
+    "cli"
+  ],
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
   "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "exports": {
-    ".": "./dist/index.js",
-    "./checks": "./dist/checks/index.js"
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./checks": {
+      "types": "./dist/checks/index.d.ts",
+      "import": "./dist/checks/index.js"
+    },
+    "./package.json": "./package.json"
   },
   "bin": {
     "flightcheck": "dist/cli.js",
-    "flightcheck-analyze": "dist/analyze.js",
-    "flightcheck-orchestrate": "dist/orchestrate.js"
+    "flightcheck-analyze": "dist/analyze.js"
   },
   "files": [
     "dist",
+    "!dist/orchestrate.js",
+    "!dist/orchestrate/**",
+    "!dist/orchestrate.d.ts",
+    "!dist/orchestrate.d.ts.map",
     "docs/*.md",
-    "prompts/fix",
     "README.md",
+    "CHANGELOG.md",
     "LICENSE"
   ],
-  "publishConfig": {
-    "access": "public"
-  },
   "scripts": {
     "dev": "tsx src/cli.ts --help",
     "flightcheck": "tsx src/cli.ts",
     "crawl": "tsx src/cli.ts",
     "analyze": "tsx src/analyze.ts",
-    "orchestrate": "tsx src/orchestrate.ts",
     "build": "tsc",
-    "prepublishOnly": "tsc",
+    "prepublishOnly": "pnpm test && pnpm build",
     "start": "node dist/cli.js",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "cheerio": "^1.1.2",
@@ -53,9 +83,6 @@
     "tsx": "^4.20.6",
     "typescript": "^5.9.3",
     "vitest": "^4.1.9"
-  },
-  "engines": {
-    "node": ">=22.0.0"
   },
   "packageManager": "pnpm@11.5.2+sha512.71c631e382066efc25625d5cf029075de07b61b37f6e27350fbd84b1bda5864c8c1967adc280776b45c30a715c0359a3be08fef42d5bb09e2b99029979692916"
 }

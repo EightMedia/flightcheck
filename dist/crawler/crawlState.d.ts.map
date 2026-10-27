@@ -1,0 +1,1 @@
+{"version":3,"file":"crawlState.d.ts","sourceRoot":"","sources":["../../src/crawler/crawlState.ts"],"names":[],"mappings":"AAAA,OAAO,KAAK,EAAE,kBAAkB,EAAE,MAAM,aAAa,CAAC;AAEtD,MAAM,MAAM,UAAU,GAAG;IACvB,OAAO,EAAE,kBAAkB,EAAE,CAAC;IAC9B,WAAW,EAAE,OAAO,CAAC;CACtB,CAAC;AAEF,wBAAgB,gBAAgB,IAAI,UAAU,CAK7C"}

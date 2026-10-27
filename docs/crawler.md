@@ -19,9 +19,9 @@ pnpm run flightcheck -- https://example.com
 By default, flightcheck writes crawl JSON plus a structured analyze report to `./flightcheck/`,
 with filenames based on timestamp and hostname, for example:
 
-- `./flightcheck/20260618.1413-eight.nl-raw.json`
-- `./flightcheck/20260618.1413-eight.nl-report.json`
-- `./flightcheck/20260618.1413-eight.nl-report.md`
+- `./flightcheck/20260618.1413-example.com-raw.json`
+- `./flightcheck/20260618.1413-example.com-report.json`
+- `./flightcheck/20260618.1413-example.com-report.md`
 
 Use `--json-only` to skip the analyze report.
 
@@ -83,7 +83,7 @@ few, with `--skip` you exclude groups. `--only` and `--skip` cannot be used toge
 `sitemap.xml` can be a **sitemap index** (`<sitemapindex>`) that points to child sitemap files
 via nested `<loc>` entries, or a **urlset** with page URLs. The crawler follows sitemap
 index files recursively and treats apex and `www` hostnames as the same site (so
-`https://eight.nl/sitemap.xml` can discover URLs on `https://www.eight.nl/`).
+`https://example.com/sitemap.xml` can discover URLs on `https://www.example.com/`).
 
 The `security` group scans both page HTML and linked same-origin JavaScript files (`<script src>`)
 for leaked API keys and secrets. Shared bundles are cached per URL and fetched only once.

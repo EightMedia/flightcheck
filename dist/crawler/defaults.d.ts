@@ -1,0 +1,11 @@
+export declare const DEFAULT_MAX_PAGES = 1000;
+export declare const DEFAULT_DELAY_MS = 500;
+export declare const DEFAULT_TIMEOUT_MS = 10000;
+export declare const DEFAULT_CONCURRENCY = 1;
+export declare const DEFAULT_BURST_DELAY_MS = 0;
+export declare const DEFAULT_OUTPUT_DIR = "./flightcheck";
+export declare const DEFAULT_SITEMAP_URL_SUFFIX = "/sitemap.xml";
+export declare const DEFAULT_MAX_SITEMAPS = 20;
+export declare const DEFAULT_MAX_SITEMAP_URLS = 10000;
+export declare const DEFAULT_USER_AGENT = "h1-crawler/2.0 (+https://local-script)";
+//# sourceMappingURL=defaults.d.ts.map

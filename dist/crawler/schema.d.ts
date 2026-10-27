@@ -1,0 +1,87 @@
+export type SecretSeverity = "critical" | "review";
+export type SecretFinding = {
+    type: string;
+    provider: string;
+    severity: SecretSeverity;
+    masked: string;
+    source: string;
+};
+export type TrackingItem = {
+    provider: string;
+    id: string;
+};
+export type StackDetection = {
+    name: string;
+    categories: string[];
+    confidence: "high" | "medium" | "low";
+    evidence: string[];
+    website?: string;
+    version?: string;
+};
+export type CrawlIssueSeverity = "critical" | "error" | "warning" | "review";
+export type CrawlIssue = {
+    id: string;
+    severity: CrawlIssueSeverity;
+    message: string;
+};
+export type VerificationRecord = {
+    url: string;
+    status: number | null;
+    h1: string;
+    title: string;
+    metaTitle: string;
+    metaDescription: string;
+    robots: string;
+    template: string;
+    mainCount: number | null;
+    charset: string;
+    language: string;
+    colorScheme: string;
+    themeColor: string;
+    doctype: string;
+    viewport: string;
+    canonical: string;
+    favicon: string;
+    icons: Array<{
+        rel: string;
+        href: string;
+        type: string;
+        sizes: string;
+        media: string;
+    }>;
+    og: {
+        title: string;
+        description: string;
+        image: string;
+        url: string;
+        type: string;
+        siteName: string;
+    };
+    twitter: {
+        card: string;
+        title: string;
+        description: string;
+        image: string;
+    };
+    tracking: {
+        tagManager: TrackingItem[];
+        analytics: TrackingItem[];
+    };
+    stack?: {
+        detections: StackDetection[];
+    };
+    security: {
+        secrets: SecretFinding[];
+        scannedAssets: number;
+    };
+    images?: {
+        issues: CrawlIssue[];
+    };
+    a11yStatic?: {
+        issues: CrawlIssue[];
+    };
+    note?: string;
+    error?: string;
+};
+export declare function createEmptyVerificationRecord(url: string, status: number | null): VerificationRecord;
+//# sourceMappingURL=schema.d.ts.map

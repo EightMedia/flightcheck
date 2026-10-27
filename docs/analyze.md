@@ -17,13 +17,13 @@ standalone script only when you want to re-analyze an existing JSON file without
 ## Usage
 
 ```bash
-pnpm run analyze -- ./flightcheck/20260618.1413-eight.nl-raw.json
+pnpm run analyze -- ./flightcheck/20260618.1413-example.com-raw.json
 ```
 
 Include only critical/error findings in the Markdown view:
 
 ```bash
-pnpm run analyze -- ./flightcheck/20260618.1413-eight.nl-raw.json --errors-only
+pnpm run analyze -- ./flightcheck/20260618.1413-example.com-raw.json --errors-only
 ```
 
 Without `--output`, paths are derived from the input: `-raw.json` becomes

@@ -1,0 +1,13 @@
+dist/orchestrate.js
+dist/orchestrate/**
+dist/**/orchestrate*
+docs/superpowers/**
+docs/changelog/**
+src/**
+tests/**
+*.tsbuildinfo
+.env
+.env.*
+flightcheck/**
+storage/**
+output/**

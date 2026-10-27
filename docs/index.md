@@ -17,7 +17,8 @@
 
 ## Changelog
 
-Branch changelogs live in [changelog/](./changelog/).
-
-- [2026-10-27 — structured-report-json](./changelog/2026-10-27--structured-report-json.md)
-- [2026-09-28 — agent-ready-check](./changelog/2026-09-28--agent-ready-check.md)
+- Package releases: [CHANGELOG.md](../CHANGELOG.md)
+- Branch notes: [changelog/](./changelog/)
+  - [2026-10-27 — npm-public-package](./changelog/2026-10-27--npm-public-package.md)
+  - [2026-10-27 — structured-report-json](./changelog/2026-10-27--structured-report-json.md)
+  - [2026-09-28 — agent-ready-check](./changelog/2026-09-28--agent-ready-check.md)

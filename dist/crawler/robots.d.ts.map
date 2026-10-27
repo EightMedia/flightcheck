@@ -1,0 +1,1 @@
+{"version":3,"file":"robots.d.ts","sourceRoot":"","sources":["../../src/crawler/robots.ts"],"names":[],"mappings":"AAGA,MAAM,MAAM,YAAY,GAAG;IACzB,SAAS,EAAE,CAAC,GAAG,EAAE,MAAM,KAAK,OAAO,CAAC;CACrC,CAAC;AAEF,wBAAsB,gBAAgB,CAAC,MAAM,EAAE,MAAM,EAAE,SAAS,EAAE,MAAM,GAAG,OAAO,CAAC,YAAY,GAAG,IAAI,CAAC,CA8BtG"}

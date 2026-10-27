@@ -1,0 +1,1 @@
+{"version":3,"file":"tier1Extractors.d.ts","sourceRoot":"","sources":["../../src/crawler/tier1Extractors.ts"],"names":[],"mappings":"AAAA,OAAO,KAAK,EAAE,UAAU,EAAE,MAAM,SAAS,CAAC;AAC1C,OAAO,KAAK,EAAE,UAAU,EAAE,MAAM,aAAa,CAAC;AAkM9C,wBAAgB,kBAAkB,CAAC,CAAC,EAAE,UAAU,EAAE,OAAO,EAAE,MAAM,GAAG,UAAU,EAAE,CAkC/E;AAiBD,wBAAgB,uBAAuB,CAAC,CAAC,EAAE,UAAU,GAAG,UAAU,EAAE,CA6CnE"}

@@ -1,0 +1,1 @@
+{"version":3,"file":"tracking.d.ts","sourceRoot":"","sources":["../../src/crawler/tracking.ts"],"names":[],"mappings":"AAAA,OAAO,KAAK,EAAE,YAAY,EAAE,MAAM,aAAa,CAAC;AAEhD,KAAK,cAAc,GAAG;IACpB,UAAU,EAAE,YAAY,EAAE,CAAC;IAC3B,SAAS,EAAE,YAAY,EAAE,CAAC;CAC3B,CAAC;AAMF,wBAAgB,eAAe,CAAC,IAAI,EAAE,MAAM,GAAG,cAAc,CAkD5D"}
