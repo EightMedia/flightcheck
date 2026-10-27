@@ -11,10 +11,6 @@
 - [QC checks plan](./qc-checks-plan.md)
 - [Agent fixes (deprecated)](./agent-fixes.md)
 
-## Specs
-
-- [Structured report](./superpowers/specs/2026-10-27-structured-report-design.md)
-
 ## Changelog
 
 - Package releases: [CHANGELOG.md](../CHANGELOG.md)

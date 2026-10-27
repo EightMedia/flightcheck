@@ -3,10 +3,8 @@
 **Status:** deprecated. Analyze no longer writes `*-fix-manifest.json` or
 `*-agent-jobs/`.
 
-Use the structured report instead:
-
-- [Analyze reports](./analyze.md) — `*-report.json` + `*-report.md`
-- [Design](./superpowers/specs/2026-10-27-structured-report-design.md)
+Use the structured report instead: [Analyze reports](./analyze.md)
+(`*-report.json` + `*-report.md`).
 
 The previous agent-jobs / fix-manifest workflow (work packages, `prompt.md` per
 package, orchestrate helpers) may still exist in the source tree for reference, but

@@ -99,5 +99,4 @@ Generated from the JSON. Structure:
 - The script validates crawl input against the expected flightcheck report schema.
 - On schema errors, the script stops with a clear error message.
 - Fix-manifest and agent-jobs output are no longer generated. Prefer `*-report.json`
-  for machine consumers. See the design note in
-  [superpowers/specs/2026-10-27-structured-report-design.md](./superpowers/specs/2026-10-27-structured-report-design.md).
+  for machine consumers.
