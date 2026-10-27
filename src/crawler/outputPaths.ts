@@ -13,51 +13,50 @@ export function hostnameFromUrl(url: string): string {
 export function buildDefaultOutputPaths(
   startUrl: string,
   now = new Date()
-): { rawJson: string; reportMd: string } {
+): { rawJson: string; reportMd: string; reportJson: string } {
   const stamp = formatRunTimestamp(now);
   const host = hostnameFromUrl(startUrl);
   const base = `${stamp}-${host}`;
   return {
     rawJson: `${DEFAULT_OUTPUT_DIR}/${base}-raw.json`,
     reportMd: `${DEFAULT_OUTPUT_DIR}/${base}-report.md`,
+    reportJson: `${DEFAULT_OUTPUT_DIR}/${base}-report.json`,
   };
 }
 
-export function defaultReportPathForInput(inputPath: string): string {
+function reportBasename(inputPath: string): string {
   if (inputPath.endsWith("-raw.json")) {
-    return `${inputPath.slice(0, -"-raw.json".length)}-report.md`;
-  }
-  if (inputPath.endsWith(".json")) {
-    return `${inputPath.slice(0, -".json".length)}-report.md`;
-  }
-  return `${inputPath}-report.md`;
-}
-
-export function defaultManifestPathForInput(inputPath: string): string {
-  if (inputPath.endsWith("-raw.json")) {
-    return `${inputPath.slice(0, -"-raw.json".length)}-fix-manifest.json`;
+    return inputPath.slice(0, -"-raw.json".length);
   }
   if (inputPath.endsWith("-report.md")) {
-    return `${inputPath.slice(0, -"-report.md".length)}-fix-manifest.json`;
+    return inputPath.slice(0, -"-report.md".length);
   }
-  if (inputPath.endsWith(".json")) {
-    return `${inputPath.slice(0, -".json".length)}-fix-manifest.json`;
-  }
-  return `${inputPath}-fix-manifest.json`;
-}
-
-export function defaultAgentJobsPathForInput(inputPath: string): string {
-  if (inputPath.endsWith("-raw.json")) {
-    return `${inputPath.slice(0, -"-raw.json".length)}-agent-jobs`;
+  if (inputPath.endsWith("-report.json")) {
+    return inputPath.slice(0, -"-report.json".length);
   }
   if (inputPath.endsWith("-fix-manifest.json")) {
-    return `${inputPath.slice(0, -"-fix-manifest.json".length)}-agent-jobs`;
-  }
-  if (inputPath.endsWith("-report.md")) {
-    return `${inputPath.slice(0, -"-report.md".length)}-agent-jobs`;
+    return inputPath.slice(0, -"-fix-manifest.json".length);
   }
   if (inputPath.endsWith(".json")) {
-    return `${inputPath.slice(0, -".json".length)}-agent-jobs`;
+    return inputPath.slice(0, -".json".length);
   }
-  return `${inputPath}-agent-jobs`;
+  return inputPath;
+}
+
+export function defaultReportPathForInput(inputPath: string): string {
+  return `${reportBasename(inputPath)}-report.md`;
+}
+
+export function defaultReportJsonPathForInput(inputPath: string): string {
+  return `${reportBasename(inputPath)}-report.json`;
+}
+
+/** @deprecated Fix-manifest output is removed; kept for callers that still resolve paths. */
+export function defaultManifestPathForInput(inputPath: string): string {
+  return `${reportBasename(inputPath)}-fix-manifest.json`;
+}
+
+/** @deprecated Agent-jobs output is removed; kept for callers that still resolve paths. */
+export function defaultAgentJobsPathForInput(inputPath: string): string {
+  return `${reportBasename(inputPath)}-agent-jobs`;
 }

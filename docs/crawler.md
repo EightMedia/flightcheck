@@ -16,25 +16,22 @@ This crawler collects per-URL verification data for SEO, metadata, tracking, and
 pnpm run flightcheck -- https://example.com
 ```
 
-By default, flightcheck writes both JSON and a Markdown TODO report to `./flightcheck/`, with
-filenames based on timestamp and hostname, for example:
+By default, flightcheck writes crawl JSON plus a structured analyze report to `./flightcheck/`,
+with filenames based on timestamp and hostname, for example:
 
 - `./flightcheck/20260618.1413-eight.nl-raw.json`
+- `./flightcheck/20260618.1413-eight.nl-report.json`
 - `./flightcheck/20260618.1413-eight.nl-report.md`
 
-The analyze step also writes a fix manifest and an agent-jobs folder alongside the report:
-
-- `./flightcheck/20260618.1413-eight.nl-fix-manifest.json`
-- `./flightcheck/20260618.1413-eight.nl-agent-jobs/`
-
-Use `--json-only` to skip the Markdown report.
+Use `--json-only` to skip the analyze report.
 
 Key flags:
 
 - `--output <file>` default `{timestamp}-{hostname}-raw.json` in `./flightcheck/`
 - `--report <file>` default `{timestamp}-{hostname}-report.md` in `./flightcheck/`
-- `--json-only` write JSON only, no Markdown report; with `--json-only`, default checks fall back to `crawl` only
-- `--errors-only` include only records with errors or missing attributes in the report
+  (paired `*-report.json` is written next to it)
+- `--json-only` write crawl JSON only; with `--json-only`, default checks fall back to `crawl` only
+- `--errors-only` include only critical/error findings in the Markdown report
 - `--checks <ids>` comma-separated checks; default: all implemented checks (`crawl`, `security-headers`, `dns`, `robots-txt`, `sitemap`, `analyze`)
 - `--parallel` run independent checks in the same wave concurrently
 - `--max-pages <n>`
@@ -50,7 +47,6 @@ Key flags:
 - `--only <groups>` run only these check groups (comma-separated)
 - `--skip <groups>` skip these check groups (comma-separated)
 - `--reveal-secrets` show full secret values instead of masked
-- `--repo <path>` path to the site repo for agent prompt overrides (`.flightcheck/prompts/`)
 
 Examples:
 

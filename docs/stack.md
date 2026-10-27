@@ -1,7 +1,7 @@
 # Stack detection
 
 Flightcheck fingerprints the technology stack of a crawled site for handover docs and agent
-routing. Results appear as an informational `## Stack` section in the analyze report.
+routing. Results appear in `analysis.stack` in `*-report.json` and under **Stack** in the Markdown report.
 
 Detection uses **curated flightcheck rules** in `src/crawler/stackDetect.ts` — not the full
 Wappalyzer / webappanalyzer database. Rules only fire on strong signals (script URLs, distinctive

@@ -1,30 +1,25 @@
 # 🚀 Flightcheck
 
-**Pre-launch website audit — with ready-to-use fix instructions for AI agents.**
+**Pre-launch website audit — with a structured report for people and tools.**
 
 Flightcheck crawls a site and checks what's wrong before you go live: missing meta tags,
 accessibility issues, weak security headers, DNS settings, robots.txt and sitemap mismatches,
-and more. The result is structured output that both developers and AI agents can use to get 
-started optimizing the site.
+and more. Analyze turns that into one machine-readable JSON report and a plain-language
+Markdown report generated from it.
 
 ## How it works
 
-1. **🕷️ Crawl & checks** — Flightcheck scans pages and runs modular checks (SEO, a11y, security,
+1. **Crawl & checks** — Flightcheck scans pages and runs modular checks (SEO, a11y, security,
    infra).
-2. **🕵️‍♀️ Analyze** — findings are grouped by where they need to be fixed: site-wide, per template,
-   or per page.
-3. **🦾 Agent jobs** — for each fix package, Flightcheck generates a `prompt.md` with concrete
-   instructions. AI agents can use these to propose targeted pull requests: one PR per package,
-   reviewable and verifiable. The prompt are conservative: it's instructed not to commit/push/change
-   without developer consent.
+2. **Analyze** — findings become a flat list with severity, category, and scope metadata.
+3. **Reports** — `*-report.json` is the source of truth; `*-report.md` is a readable view of
+   the same data for less technical readers.
 
 | Output | Audience | Purpose |
 | --- | --- | --- |
-| `*-report.md` | Human | Summary, priorities, grouped todos |
-| `*-fix-manifest.json` | Orchestrator / agents | Work packages, routing, verification hooks |
-| `*-agent-jobs/` | AI agents | `BASE.md`, `PLAN.md`, and a `prompt.md` per package |
-
-See [docs/agent-fixes.md](docs/agent-fixes.md) for the full agent workflow.
+| `*-raw.json` | Machine | Source data from all checks |
+| `*-report.json` | Machine / tools | Analysis facts + findings |
+| `*-report.md` | Human | Plain-language report rendered from the JSON |
 
 ## Quick start
 
@@ -36,9 +31,8 @@ pnpm run flightcheck -- https://example.com
 This writes timestamped files in `./flightcheck/`, for example:
 
 - `./flightcheck/20260618.1413-eight.nl-raw.json` — source data from all checks
+- `./flightcheck/20260618.1413-eight.nl-report.json` — structured analysis + findings
 - `./flightcheck/20260618.1413-eight.nl-report.md` — human-readable report
-- `./flightcheck/20260618.1413-eight.nl-fix-manifest.json` — work packages for agents
-- `./flightcheck/20260618.1413-eight.nl-agent-jobs/` — prompts per fix package
 
 By default this runs all implemented checks: crawl, security headers, DNS, robots.txt,
 sitemap validation, agent readiness, and analyze. If the start URL is a domain redirect, only redirect
@@ -57,7 +51,6 @@ pnpm run analyze -- ./flightcheck/20260618.1413-eight.nl-raw.json
 - `docs/check-api.md` — modular check API and extension guide
 - `docs/agent-ready.md` — AI agent readiness checks (llms.txt, markdown negotiation, …)
 - `docs/qc-checks-plan.md` — roadmap for full site QC checks
-- `docs/agent-fixes.md` — agent-jobs output (one PR per package) and prompt composition
 - `docs/crawler.md`
 - `docs/analyze.md`
 - `docs/stack.md`
@@ -79,4 +72,6 @@ import { runChecks, runCrawlCheck, runAnalyzeCheck } from "@eightmedia/flightche
 const { outputs } = await runChecks({
   startUrl: "https://example.com",
 });
+
+const report = outputs.analyze?.report;
 ```

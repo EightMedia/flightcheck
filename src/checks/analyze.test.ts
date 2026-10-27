@@ -49,36 +49,37 @@ function makeTempInput(): string {
 }
 
 describe("runAnalyzeCheck", () => {
-  it("writes agent job prompts alongside manifest by default", async () => {
+  it("writes structured report JSON and Markdown by default", async () => {
     const inputPath = makeTempInput();
     const result = await runAnalyzeCheck({
       inputPath,
-      writeReport: false,
       siteUrl: "https://example.com",
     });
 
-    expect(existsSync(result.manifestPath)).toBe(true);
-    expect(existsSync(join(result.agentJobsPath, "README.md"))).toBe(true);
-    expect(existsSync(join(result.agentJobsPath, "summary.json"))).toBe(true);
+    expect(existsSync(result.reportPath)).toBe(true);
+    expect(existsSync(result.reportJsonPath)).toBe(true);
+    expect(result.report.version).toBe(1);
+    expect(result.report.findings.length).toBeGreaterThan(0);
+    expect(result.markdown).toMatch(/# Flightcheck report/);
+    expect(result.markdown).toMatch(/## Findings/);
 
-    const seoPrompt = join(result.agentJobsPath, "seo-site-wide", "prompt.md");
-    expect(existsSync(seoPrompt)).toBe(true);
-    const prompt = readFileSync(seoPrompt, "utf8");
-    expect(prompt).toMatch(/seo-site-wide/);
-    expect(prompt).toMatch(/Work package/);
-    expect(result.agentJobs?.autoFixableCount).toBeGreaterThan(0);
+    const parsed = JSON.parse(readFileSync(result.reportJsonPath, "utf8")) as {
+      analysis: { pagesAnalyzed: number };
+      findings: unknown[];
+    };
+    expect(parsed.analysis.pagesAnalyzed).toBe(1);
+    expect(parsed.findings.length).toBe(result.report.findings.length);
   });
 
-  it("skips agent jobs when writeAgentJobs is false", async () => {
+  it("can skip writing files", async () => {
     const inputPath = makeTempInput();
     const result = await runAnalyzeCheck({
       inputPath,
       writeReport: false,
-      writeAgentJobs: false,
     });
 
-    expect(existsSync(result.manifestPath)).toBe(true);
-    expect(existsSync(join(result.agentJobsPath, "README.md"))).toBe(false);
-    expect(result.agentJobs).toBeUndefined();
+    expect(existsSync(result.reportPath)).toBe(false);
+    expect(existsSync(result.reportJsonPath)).toBe(false);
+    expect(result.report.findings.length).toBeGreaterThan(0);
   });
 });

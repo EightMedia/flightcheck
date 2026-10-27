@@ -24,12 +24,12 @@ async function main(): Promise<void> {
 
   program
     .name("flightcheck")
-    .description("Crawl a website and generate JSON + Markdown TODO reports.")
+    .description("Crawl a website and generate crawl JSON plus structured report JSON/Markdown.")
     .argument("<startUrl>", "Start URL for the crawl")
-    .option("--output <file>", "Output JSON file path")
-    .option("--report <file>", "Output Markdown TODO report path")
-    .option("--json-only", "Skip Markdown TODO report generation", false)
-    .option("--errors-only", "Include only records with errors or missing attributes in the report", false)
+    .option("--output <file>", "Output crawl JSON file path")
+    .option("--report <file>", "Output Markdown report path")
+    .option("--json-only", "Skip analyze report generation", false)
+    .option("--errors-only", "Include only critical/error findings in the Markdown report", false)
     .option("--parallel", "Run independent checks in parallel", false)
     .option(
       "--checks <ids>",
@@ -51,7 +51,6 @@ async function main(): Promise<void> {
     .option("--only <groups>", "Run only these check groups (comma-separated): meta,icons,social,tracking,stack,security,images,a11y-static")
     .option("--skip <groups>", "Skip these check groups (comma-separated)")
     .option("--reveal-secrets", "Show full secret values instead of masked ones", false)
-    .option("--repo <path>", "Site repo path for agent prompt overrides (.flightcheck/prompts/)")
     .action(async (startUrl: string, opts) => {
       if (!isHttpUrl(startUrl)) {
         throw new Error("<start-url> must be a valid http(s) URL.");
@@ -92,9 +91,9 @@ async function main(): Promise<void> {
         },
         analyze: {
           reportPath: reportPath ?? defaultPaths.reportMd,
+          reportJsonPath: defaultPaths.reportJson,
           errorsOnly,
           siteUrl: normalizedStartUrl,
-          projectRepo: opts.repo as string | undefined,
         },
       });
 
@@ -133,11 +132,8 @@ async function main(): Promise<void> {
 
       if (analyzeResult) {
         summary.report = analyzeResult.reportPath;
-        summary.manifest = analyzeResult.manifestPath;
-        summary.agentJobs = analyzeResult.agentJobsPath;
-        if (analyzeResult.agentJobs) {
-          summary.agentJobPackages = analyzeResult.agentJobs.autoFixableCount;
-        }
+        summary.reportJson = analyzeResult.reportJsonPath;
+        summary.findings = analyzeResult.report.findings.length;
       }
 
       process.stdout.write(`${JSON.stringify(summary, null, 2)}\n`);

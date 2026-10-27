@@ -61,11 +61,9 @@ export type CrawlCheckResult = {
 export type AnalyzeCheckResult = {
   inputPath: string;
   reportPath: string;
-  manifestPath: string;
-  agentJobsPath: string;
-  agentJobs?: import("../orchestrate/writeAgentJobs.js").AgentJobSummary;
+  reportJsonPath: string;
   markdown: string;
-  manifest: import("../analyze/fixManifest.js").FixManifest;
+  report: import("../analyze/structuredReport.js").FlightcheckReport;
   pagesAnalyzed: number;
 };
 

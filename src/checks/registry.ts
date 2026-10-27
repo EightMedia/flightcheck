@@ -44,7 +44,7 @@ export const CHECK_DEFINITIONS: Record<CheckId, CheckDefinition> = {
   analyze: {
     id: "analyze",
     name: "Analyze",
-    description: "Turn crawl JSON into an actionable Markdown TODO report.",
+    description: "Turn crawl JSON into structured report JSON + Markdown.",
     dependencies: ["crawl"],
     implemented: true,
     run: async (context) => {
@@ -63,6 +63,7 @@ export const CHECK_DEFINITIONS: Record<CheckId, CheckDefinition> = {
             crawlOutput?.outputPath ??
             (redirectOnly ? "redirect-only.json" : undefined),
           reportPath: context.options.analyze?.reportPath,
+          reportJsonPath: context.options.analyze?.reportJsonPath,
           tier1: {
             redirect: context.outputs.redirect,
             securityHeaders: context.outputs.securityHeaders,

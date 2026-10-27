@@ -11,7 +11,7 @@ For a plain-language list of what is audited, see [checks.md](./checks.md).
 | ID | Status | Description |
 | --- | --- | --- |
 | `crawl` | implemented | Crawl pages and collect SEO, metadata, tracking, and security data |
-| `analyze` | implemented | Turn crawl JSON into a Markdown TODO report and `*-fix-manifest.json` for agent orchestration |
+| `analyze` | implemented | Turn crawl JSON into `*-report.json` + human-readable `*-report.md` |
 | `security-headers` | implemented | Verify HTTP security headers (CSP, HSTS, etc.) |
 | `dns` | implemented | Verify DNS records, SPF/DMARC, and domain ownership signals. SPF/DMARC missing-record warnings are skipped on Vercel/Netlify platform preview hostnames (`*.vercel.app`, `*.netlify.app`) |
 | `robots-txt` | implemented | Report robots.txt presence, sitemap directives, and crawl blocks |
