@@ -1,6 +1,5 @@
 import { z } from "zod";
-import { buildAgentReadySection, buildDnsSection, buildRedirectSection, buildRobotsAndSitemapSection, buildSecurityHeadersSection, buildIssuesSummarySection, } from "./reportTier1.js";
-import { aggregateStackFromRecords, buildStackSection } from "./stack.js";
+import { aggregateStackFromRecords } from "./stack.js";
 const iconSchema = z.object({
     rel: z.string(),
     href: z.string(),
@@ -716,151 +715,12 @@ export async function buildReportAnalysis(records, tier1 = {}, options = {}) {
     };
 }
 export async function buildMarkdown(inputPath, records, includeOnlyErrors, tier1 = {}, options = {}) {
-    const analysis = await buildReportAnalysis(records, tier1, options);
-    const { allItems, totalPages, redirectOnly, siteWideFields, siteWideWarningKeys, siteWideTier1Keys, siteWideFixTodos, templateGroups, templateFieldMap, templateWarningKeyMap, templateTier1KeyMap, pageFixes, securityPages, stackProfile, crawlIssueCounts, } = analysis;
-    const now = new Date().toISOString();
-    const templateSections = [];
-    if (templateGroups.size > 0) {
-        templateSections.push("## Fix in templates", "");
-        templateSections.push("These issues appear on every page using the same template. Fix each template file once.", "");
-        const sortedGroups = [...templateGroups.entries()].sort((a, b) => b[1].length - a[1].length);
-        for (const [template, items] of sortedGroups) {
-            const templateFields = [...(templateFieldMap.get(template) ?? [])];
-            const templateWarningKeys = [...(templateWarningKeyMap.get(template) ?? [])];
-            const templateTier1Keys = [...(templateTier1KeyMap.get(template) ?? [])];
-            const templateFixTodos = buildScopedFixTodos(items, "template", siteWideFields, siteWideWarningKeys, siteWideTier1Keys);
-            templateSections.push(`### Template: \`${template}\` (${items.length} page(s))`, "");
-            if (templateFixTodos.length === 0) {
-                templateSections.push("- No template-specific issues (remaining issues are site-wide or page-specific).");
-            }
-            else {
-                templateSections.push(...templateFixTodos);
-            }
-            templateSections.push("");
-        }
-    }
-    const pageSections = [];
-    let pageSpecificCount = 0;
-    for (const { item, remainingTodos } of pageFixes) {
-        const hasSecrets = securityPages.some((page) => page.url === item.url);
-        if (includeOnlyErrors && remainingTodos.length === 0 && !hasSecrets) {
-            continue;
-        }
-        if (remainingTodos.length === 0 && !hasSecrets)
-            continue;
-        pageSpecificCount += 1;
-        const statusValue = item.status === null ? "error" : String(item.status);
-        pageSections.push(`### ${item.url}`, "");
-        pageSections.push(`- Status: \`${statusValue}\``);
-        if (item.template)
-            pageSections.push(`- Template: \`${item.template}\``);
-        if (item.note)
-            pageSections.push(`- Note: ${item.note}`);
-        if (item.error)
-            pageSections.push(`- Error: ${item.error}`);
-        if (remainingTodos.length === 0) {
-            pageSections.push("- [ ] Review security findings for this page");
-        }
-        else {
-            pageSections.push(...remainingTodos);
-        }
-        pageSections.push("");
-    }
-    const securityLines = [];
-    if (securityPages.length > 0) {
-        const anyMasked = securityPages.some((page) => page.secrets.some((secret) => secret.masked.includes("…")));
-        securityLines.push("## 🔑 Security", "");
-        if (anyMasked) {
-            securityLines.push("Secret values are masked. Re-run the crawl with `--reveal-secrets` to show full values.", "");
-        }
-        const severityRank = (severity) => (severity === "critical" ? 0 : 1);
-        for (const page of securityPages) {
-            const sorted = [...page.secrets].sort((a, b) => severityRank(a.severity) - severityRank(b.severity));
-            securityLines.push(`### ${page.url}`, "");
-            for (const secret of sorted) {
-                securityLines.push(`- [ ] **${secret.severity.toUpperCase()}** ${secret.provider} ${secret.type}: \`${secret.masked}\` (source: ${secret.source})`);
-            }
-            securityLines.push("");
-        }
-    }
-    const redirectLines = [];
-    if (tier1.redirect) {
-        redirectLines.push(...buildRedirectSection(tier1.redirect));
-    }
-    const infraLines = [];
-    if (tier1.dns)
-        infraLines.push(...buildDnsSection(tier1.dns));
-    if (!redirectOnly) {
-        const stackLines = buildStackSection(stackProfile, totalPages);
-        if (stackLines.length > 0)
-            infraLines.push(...stackLines);
-        if (tier1.securityHeaders)
-            infraLines.push(...buildSecurityHeadersSection(tier1.securityHeaders));
-        if (tier1.robotsTxt || tier1.sitemap) {
-            infraLines.push(...buildRobotsAndSitemapSection(tier1.robotsTxt, tier1.sitemap));
-        }
-        if (tier1.agentReady)
-            infraLines.push(...buildAgentReadySection(tier1.agentReady));
-    }
-    const templatesWithFixes = [...templateGroups.entries()]
-        .filter(([, items]) => buildScopedFixTodos(items, "template", siteWideFields, siteWideWarningKeys, siteWideTier1Keys).length > 0)
-        .map(([template]) => template)
-        .sort();
-    const issuesSummarySection = buildIssuesSummarySection(tier1, crawlIssueCounts, redirectOnly);
-    const pagesWithIssues = allItems.filter((item) => item.missingFields.length > 0 ||
-        item.warningKeys.length > 0 ||
-        item.tier1IssueKeys.length > 0 ||
-        records.some((record) => record.url === item.url && (record.security?.secrets.length ?? 0) > 0)).length;
-    const summaryIntro = redirectOnly
-        ? "This host responds with a redirect at the start URL. Flightcheck validated the redirect setup and skipped crawling."
-        : "Actionable todos from the flightcheck crawl, grouped by fix scope.";
-    const coverageSection = buildCoverageSection(allItems, totalPages, siteWideFields, siteWideWarningKeys, siteWideTier1Keys, templateFieldMap, templateWarningKeyMap, templateTier1KeyMap);
-    const lines = [
-        "# Flightcheck TODO Report",
-        "",
-        `Generated: ${now}`,
-        `Input: \`${inputPath}\``,
-        "",
-        "## Summary",
-        "",
-        summaryIntro,
-        "",
-        `- Pages analyzed: ${totalPages}`,
-        `- Pages with issues: ${pagesWithIssues}`,
-        `- Site-wide fixes: ${siteWideFixTodos.length}`,
-        `- Templates that need fixes: ${formatTemplatesThatNeedFixes(templatesWithFixes, templateGroups.size, totalPages)}`,
-        `- Pages with page-specific fixes: ${pageSpecificCount}`,
-        "",
-        ...issuesSummarySection,
-        ...buildHowToUseSection(redirectOnly),
-        ...coverageSection,
-        "",
-        ...redirectLines,
-        ...securityLines,
-        ...infraLines,
-        "## Fix site-wide (all pages)",
-        "",
-    ];
-    if (redirectOnly && totalPages === 0) {
-        lines.push("- No crawl performed because the start URL is a domain redirect.");
-    }
-    else if (siteWideFixTodos.length === 0) {
-        lines.push("- No issues shared by all scanned pages.");
-    }
-    else {
-        lines.push(`These ${siteWideFixTodos.length} issue(s) appear on all ${totalPages} scanned page(s). Fix once in the root layout, shared head partial, or global SEO config.`, "");
-        lines.push(...siteWideFixTodos);
-    }
-    lines.push("");
-    lines.push(...templateSections);
-    lines.push("## Fix per page", "");
-    lines.push("Issues not covered above — likely page-specific content or routes.", "");
-    if (pageSections.length === 0) {
-        lines.push("", "- No page-specific fixes needed.");
-    }
-    else {
-        lines.push("");
-        lines.push(...pageSections);
-    }
-    return `${lines.join("\n").replace(/\n{3,}/g, "\n\n").trimEnd()}\n`;
+    const { buildStructuredReport, renderReportMarkdown } = await import("./structuredReport.js");
+    const report = await buildStructuredReport(inputPath, records, tier1, options);
+    if (!includeOnlyErrors)
+        return renderReportMarkdown(report);
+    return renderReportMarkdown({
+        ...report,
+        findings: report.findings.filter((finding) => finding.severity === "critical" || finding.severity === "error"),
+    });
 }

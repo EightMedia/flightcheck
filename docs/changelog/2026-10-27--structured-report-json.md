@@ -12,7 +12,8 @@
 - Analyze schrijft `*-report.json` (analysis + platte findings) als bron van waarheid
 - `*-report.md` wordt daaruit gerenderd in gewone taal, gegroepeerd op severity
 - Fix-manifest en agent-jobs worden niet meer gegenereerd
-- Docs/README bijgewerkt; agent-fixes gemarkeerd als deprecated
+- Docs/README bijgewerkt op structured reports (geen agent-jobs/fix-manifest meer)
+- Agent-fixes gemarkeerd als deprecated
 
 ## Waarom
 

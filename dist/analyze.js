@@ -12,10 +12,10 @@ async function main() {
     const program = new Command();
     program
         .name("flightcheck-analyze")
-        .description("Analyze crawl JSON and generate a Markdown TODO report.")
+        .description("Analyze crawl JSON and generate structured JSON + Markdown reports.")
         .argument("<input>", "Input JSON report file path")
         .option("--output <file>", "Output Markdown file path")
-        .option("--errors-only", "Include only records with errors or missing attributes", false)
+        .option("--errors-only", "Include only critical/error findings in the Markdown report", false)
         .action(async (input, options) => {
         const inputPath = resolve(input);
         const result = await runAnalyzeCheck({
@@ -24,13 +24,12 @@ async function main() {
             errorsOnly: options.errorsOnly,
         });
         process.stdout.write(`${JSON.stringify({
-            message: "TODO report generated",
+            message: "Report generated",
             input: basename(result.inputPath),
-            output: result.reportPath,
-            manifest: result.manifestPath,
-            agentJobs: result.agentJobsPath,
-            agentJobPackages: result.agentJobs?.autoFixableCount,
+            report: result.reportPath,
+            reportJson: result.reportJsonPath,
             pagesAnalyzed: result.pagesAnalyzed,
+            findings: result.report.findings.length,
         }, null, 2)}\n`);
     });
     await program.parseAsync(sanitizedArgv);

@@ -1,10 +1,9 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
-import { buildMarkdown, parseReport } from "../analyze/report.js";
+import { parseReport } from "../analyze/report.js";
 import { buildStackProfile } from "../analyze/stack.js";
-import { defaultReportPathForInput, defaultManifestPathForInput, defaultAgentJobsPathForInput } from "../crawler/outputPaths.js";
-import { buildFixManifest } from "../analyze/fixManifest.js";
-import { writeAgentJobs } from "../orchestrate/writeAgentJobs.js";
+import { buildStructuredReport, renderReportMarkdown, } from "../analyze/structuredReport.js";
+import { defaultReportJsonPathForInput, defaultReportPathForInput, } from "../crawler/outputPaths.js";
 function loadRecords(options) {
     if (options.records !== undefined) {
         return {
@@ -23,16 +22,10 @@ function loadRecords(options) {
         inputPath,
     };
 }
-function resolveSiteUrl(options, records) {
-    if (options.siteUrl)
-        return options.siteUrl;
-    return records[0]?.url;
-}
 export async function runAnalyzeCheck(options) {
     const { records, inputPath } = loadRecords(options);
     const reportPath = resolve(options.reportPath ?? defaultReportPathForInput(inputPath));
-    const manifestPath = resolve(options.manifestPath ?? defaultManifestPathForInput(inputPath));
-    const agentJobsPath = resolve(options.agentJobsPath ?? defaultAgentJobsPathForInput(inputPath));
+    const reportJsonPath = resolve(options.reportJsonPath ?? defaultReportJsonPathForInput(inputPath));
     const redirectOnly = options.redirectOnly ?? false;
     const stackProfile = redirectOnly
         ? { detections: [], tracking: { tagManager: [], analytics: [] } }
@@ -41,40 +34,30 @@ export async function runAnalyzeCheck(options) {
             dns: options.tier1?.dns,
             robotsTxt: options.tier1?.robotsTxt,
         });
-    const markdown = await buildMarkdown(inputPath, records, options.errorsOnly ?? false, options.tier1, {
+    const report = await buildStructuredReport(inputPath, records, options.tier1, {
         redirectOnly,
         stackProfile,
     });
-    const manifest = await buildFixManifest(inputPath, records, options.tier1, {
-        redirectOnly,
-        reportPath,
-        stackProfile,
-    });
+    // errorsOnly currently filters only the Markdown presentation of page-level noise;
+    // the structured JSON keeps the full finding set for machine consumers.
+    const markdown = renderReportMarkdown(options.errorsOnly
+        ? {
+            ...report,
+            findings: report.findings.filter((finding) => finding.severity === "critical" || finding.severity === "error"),
+        }
+        : report);
     if (options.writeReport !== false) {
         mkdirSync(dirname(reportPath), { recursive: true });
         writeFileSync(reportPath, markdown, "utf8");
-    }
-    if (options.writeManifest !== false) {
-        mkdirSync(dirname(manifestPath), { recursive: true });
-        writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
-    }
-    let agentJobs;
-    if (options.writeAgentJobs !== false && options.writeManifest !== false) {
-        agentJobs = writeAgentJobs(manifest, {
-            manifestPath,
-            outputDir: agentJobsPath,
-            projectRepo: options.projectRepo,
-            siteUrl: resolveSiteUrl(options, records),
-        });
+        mkdirSync(dirname(reportJsonPath), { recursive: true });
+        writeFileSync(reportJsonPath, `${JSON.stringify(report, null, 2)}\n`, "utf8");
     }
     return {
         inputPath,
         reportPath,
-        manifestPath,
-        agentJobsPath: agentJobs?.outputDir ?? agentJobsPath,
-        agentJobs,
+        reportJsonPath,
         markdown,
-        manifest,
+        report,
         pagesAnalyzed: records.length,
     };
 }
