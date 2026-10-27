@@ -25,8 +25,8 @@ robots.txt existence and sitemaps remain in the existing `robots-txt` and `sitem
 - Network runner: `runAgentReadyCheck()` — parallel fetches of robots, llms.txt, homepage
   (HTML + markdown Accept), and well-known endpoints
 - Wave 1 (parallel with crawl / DNS / headers / robots)
-- Report section: `## Agent readiness` via `buildAgentReadySection()` in `reportTier1.ts`
-- Fix package: `agent-ready` → `prompts/fix/agent-ready.md`
+- Report: issues land in `findings[]` (`category: "infra"`) in `*-report.json`; the
+  Markdown report lists them under **Findings**
 
 ## CLI
 

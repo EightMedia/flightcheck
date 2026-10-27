@@ -6,7 +6,7 @@ image alt text, broken links, accessibility, security headers, DNS, and optional
 performance auditing.
 
 **Status:** in progress — Phase 1 shipped, Phase 2 mostly shipped  
-**Last updated:** 2026-09-28
+**Last updated:** 2026-10-27
 
 ---
 
@@ -18,8 +18,9 @@ Add the checks below as modular, exportable functions (see `docs/check-api.md`) 
 - Run independently via API endpoints in a consuming project
 - Execute in parallel where dependencies allow
 
-Each check produces structured JSON output and feeds into the Markdown TODO report via
-`analyze`.
+Each check produces structured JSON output and feeds into analyze, which writes
+`*-report.json` (`analysis` + `findings[]`) and a plain-language `*-report.md` from that
+model.
 
 ---
 
@@ -126,7 +127,7 @@ Wave 3 (optional, after crawl):
   performance (Lighthouse or PageSpeed API on same URL sample)
 
 Wave 4:
-  analyze (merges all check outputs into TODO report)
+  analyze (merges check outputs into *-report.json + *-report.md)
 ```
 
 Wave 2 and 3 share a URL sampler (`src/checks/sampleUrls.ts`):

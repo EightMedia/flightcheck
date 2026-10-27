@@ -1,7 +1,7 @@
 # Stack detection
 
-Flightcheck fingerprints the technology stack of a crawled site for handover docs and agent
-routing. Results appear in `analysis.stack` in `*-report.json` and under **Stack** in the Markdown report.
+Flightcheck fingerprints the technology stack of a crawled site for handover docs and tooling.
+Results appear in `analysis.stack` in `*-report.json` and under **Stack** in the Markdown report.
 
 Detection uses **curated flightcheck rules** in `src/crawler/stackDetect.ts` — not the full
 Wappalyzer / webappanalyzer database. Rules only fire on strong signals (script URLs, distinctive
@@ -49,25 +49,18 @@ during analyze.
 
 ## Analyze output
 
+In `*-report.json`, stack detections live under `analysis.stack` (name, categories,
+confidence, evidence, pageCount). The Markdown report renders them as:
+
 ```markdown
-## Stack
+### Stack
 
-### Platform
-- **Node.js** (medium, site-wide)
-  - implied by Next.js
-
-### Framework
-- **Next.js** (high, site-wide)
-  - html: `data-next-head`
-
-### Hosting
-- **Vercel** (high, origin)
-  - header: x-vercel-id
-
-### Tracking (flightcheck crawl)
-- Tag managers:
-  - Google Tag Manager: `GTM-XXXX`
+- **Next.js** (JavaScript frameworks, high) — Next.js runtime markers in HTML
+- **Vercel** (Hosting, high) — header: x-vercel-id
 ```
+
+Tracking IDs from the crawl are still aggregated in the stack profile for tooling; the
+human Markdown report focuses on stack detections in the **At a glance** section.
 
 Run with infra checks for the fullest picture:
 
