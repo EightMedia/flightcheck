@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.1.0] — 2026-10-27
+## [1.0.0] — 2026-10-27
 
 ### Added
 
@@ -9,6 +9,7 @@
   Markdown rendered from the same model
 - Crawl + Tier 1 checks: security headers, DNS, robots.txt, sitemap, agent readiness
 - CLI binaries: `flightcheck`, `flightcheck-analyze`
+- README guidance for installing and running inside a Node.js project
 
 ### Changed
 

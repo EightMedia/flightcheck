@@ -12,17 +12,76 @@ mismatches, exposed secrets, and more. Every run produces:
 
 ## Install
 
-```bash
-pnpm add -g @eightmedia/flightcheck
-# or: npm install -g @eightmedia/flightcheck
-```
-
-Or run without installing:
+In a Node.js project (recommended):
 
 ```bash
-pnpm dlx @eightmedia/flightcheck https://example.com
-# or: npx @eightmedia/flightcheck https://example.com
+npm install @eightmedia/flightcheck
+# or: pnpm add @eightmedia/flightcheck
+# or: yarn add @eightmedia/flightcheck
 ```
+
+Requires Node.js 22+. The package is ESM-only (`"type": "module"`).
+
+## Use in a Node project
+
+### CLI via npm scripts
+
+Add scripts to your `package.json`:
+
+```json
+{
+  "scripts": {
+    "flightcheck": "flightcheck",
+    "flightcheck:analyze": "flightcheck-analyze"
+  }
+}
+```
+
+Then:
+
+```bash
+npm run flightcheck -- https://example.com
+npm run flightcheck:analyze -- ./flightcheck/20260618.1413-example.com-raw.json
+```
+
+Or call the binaries directly after install:
+
+```bash
+npx flightcheck https://example.com
+npx flightcheck-analyze ./flightcheck/20260618.1413-example.com-raw.json
+```
+
+Without adding it to a project:
+
+```bash
+npx @eightmedia/flightcheck https://example.com
+```
+
+### Programmatic API
+
+```js
+import { runChecks } from "@eightmedia/flightcheck";
+
+const { outputs, results } = await runChecks({
+  startUrl: "https://example.com",
+});
+
+const report = outputs.analyze?.report;
+console.log(report?.analysis.pagesAnalyzed, report?.findings.length);
+
+// Write paths (when analyze ran):
+console.log(outputs.analyze?.reportPath);
+console.log(outputs.analyze?.reportJsonPath);
+```
+
+Lower-level entry points:
+
+```js
+import { runCrawlCheck, runAnalyzeCheck } from "@eightmedia/flightcheck";
+import { listChecks } from "@eightmedia/flightcheck/checks";
+```
+
+See [docs/check-api.md](docs/check-api.md) for the modular check API.
 
 ## How it works
 
@@ -45,8 +104,8 @@ See [docs/analyze.md](docs/analyze.md) for the report schema.
 ## Quick start
 
 ```bash
-pnpm add -D @eightmedia/flightcheck
-pnpm exec flightcheck https://example.com
+npm install @eightmedia/flightcheck
+npx flightcheck https://example.com
 ```
 
 This writes timestamped files in `./flightcheck/`, for example:
@@ -63,7 +122,7 @@ redirect domains. Use `--checks` for a subset, or `--json-only` for crawl JSON o
 Re-analyze an existing crawl without re-crawling:
 
 ```bash
-pnpm exec flightcheck-analyze ./flightcheck/20260618.1413-example.com-raw.json
+npx flightcheck-analyze ./flightcheck/20260618.1413-example.com-raw.json
 ```
 
 ## Documentation
@@ -76,19 +135,6 @@ pnpm exec flightcheck-analyze ./flightcheck/20260618.1413-example.com-raw.json
 - [Agent readiness](docs/agent-ready.md) — llms.txt, markdown negotiation, …
 - [QC checks plan](docs/qc-checks-plan.md) — roadmap
 - [Docs index](docs/index.md) · [Changelog](CHANGELOG.md)
-
-## Programmatic API
-
-```typescript
-import { runChecks } from "@eightmedia/flightcheck";
-
-const { outputs } = await runChecks({
-  startUrl: "https://example.com",
-});
-
-const report = outputs.analyze?.report;
-// report.analysis.stack, report.findings, …
-```
 
 ## Development
 

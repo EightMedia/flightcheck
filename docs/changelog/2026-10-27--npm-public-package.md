@@ -11,7 +11,8 @@
 
 - Package publish-klaar gemaakt naar het model van `@eightmedia/sanity-plugin-osm-input`
 - README/docs generiek gemaakt (geen Eight-only framing; example.com in voorbeelden)
-- `CHANGELOG.md`, types (`.d.ts`), author/homepage/bugs/keywords, `publishConfig.registry`
+- README: installeren en draaien in een Node-project (scripts + programmatic API)
+- Versie `1.0.0`; `CHANGELOG.md`, types (`.d.ts`), author/homepage/bugs/keywords
 - Deprecated orchestrate/prompts niet meer in de npm tarball
 - GitHub-repo publiek gezet voor een publiek npm-package
 
