@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.1.0] — 2026-10-28
+
+### Added
+
+- Findings include an optional `fix` suggestion in `*-report.json` and Markdown (`- Fix: …`)
+- Crawlee storage uses `.flightcheckStorage/<run-hash>/` and is cleaned up after each crawl
+
+### Changed
+
+- Default `--max-pages` is now **100** (was 1000)
+- Within the page budget, crawl seeds are selected from **URL-tree shape** (not slug
+  names): home/structural pages and list indexes first, then a fair sample of leaf
+  URLs under parents that have many leaf children
+- Discovered structural links jump the queue; leaf URLs under list parents are capped
+
 ## [1.0.1] — 2026-10-28
 
 ### Added

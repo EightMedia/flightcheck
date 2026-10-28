@@ -2,6 +2,7 @@ node_modules
 # Agent design/plan notes (local only; not product documentation)
 docs/superpowers/
 storage/*
+.flightcheckStorage/
 report.json
 flightcheck/*
 !flightcheck/.gitkeep

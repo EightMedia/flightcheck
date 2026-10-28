@@ -1,4 +1,5 @@
-export declare const DEFAULT_MAX_PAGES = 1000;
+/** Default crawl budget; smart selection prefers root/list pages within this cap. */
+export declare const DEFAULT_MAX_PAGES = 100;
 export declare const DEFAULT_DELAY_MS = 500;
 export declare const DEFAULT_TIMEOUT_MS = 10000;
 export declare const DEFAULT_CONCURRENCY = 1;

@@ -16,12 +16,12 @@ export function analyzeSitemapCompare(input) {
     const issues = [];
     for (const source of input.sources) {
         if (source.status === null || source.status >= 400) {
-            issues.push(issue("sitemap-unreachable", "error", `Sitemap not reachable: ${source.url} (${source.status ?? "unreachable"}).`));
+            issues.push(issue("sitemap-unreachable", "error", `Sitemap not reachable: ${source.url} (${source.status ?? "unreachable"}).`, `Ensure ${source.url} returns HTTP 200 with a valid XML sitemap or sitemap index.`));
         }
     }
     const successfulSources = input.sources.filter((source) => source.status !== null && source.status >= 200 && source.status < 300);
     if (successfulSources.length === 0) {
-        issues.push(issue("sitemap-missing", "error", "No sitemap found."));
+        issues.push(issue("sitemap-missing", "error", "No sitemap found.", "Publish /sitemap.xml (or reference it from robots.txt) and make sure it returns HTTP 200."));
         return {
             sources: input.sources,
             sitemapPageUrls: [],
@@ -35,7 +35,7 @@ export function analyzeSitemapCompare(input) {
     const sitemapPageUrls = filterComparableUrls(successfulSources.flatMap((source) => source.pageUrls), excludePatterns);
     const crawledUrls = filterComparableUrls(input.crawledUrls, excludePatterns);
     if (sitemapPageUrls.length === 0) {
-        issues.push(issue("sitemap-empty", "error", "Sitemap was reachable but contained no page URLs (check sitemap index nesting and host aliases such as apex vs www)."));
+        issues.push(issue("sitemap-empty", "error", "Sitemap was reachable but contained no page URLs (check sitemap index nesting and host aliases such as apex vs www).", "Populate the sitemap with page `<loc>` entries, or fix nested sitemap indexes and apex/www host mismatches."));
         return {
             sources: input.sources,
             sitemapPageUrls,
@@ -51,17 +51,17 @@ export function analyzeSitemapCompare(input) {
     const inSitemapNotCrawled = sitemapPageUrls.filter((url) => !crawledSet.has(url));
     const crawledNotInSitemap = crawledUrls.filter((url) => !sitemapSet.has(url));
     if (inSitemapNotCrawled.length > 0) {
-        issues.push(issue("sitemap-url-not-crawled", "critical", `${inSitemapNotCrawled.length} sitemap URL(s) were not crawled. ${SITEMAP_URL_NOT_CRAWLED_TIP}`));
+        issues.push(issue("sitemap-url-not-crawled", "critical", `${inSitemapNotCrawled.length} sitemap URL(s) were not crawled. ${SITEMAP_URL_NOT_CRAWLED_TIP}`, "Remove stale sitemap entries, fix robots blocks, or raise --max-pages so listed URLs can be crawled."));
     }
     if (crawledNotInSitemap.length > 0) {
-        issues.push(issue("sitemap-missing-crawled-url", "critical", `${crawledNotInSitemap.length} crawled URL(s) are missing from the sitemap.`));
+        issues.push(issue("sitemap-missing-crawled-url", "critical", `${crawledNotInSitemap.length} crawled URL(s) are missing from the sitemap.`, "Add the crawled URLs to the sitemap (or regenerate the sitemap from the live route set)."));
     }
     const total = new Set([...sitemapPageUrls, ...crawledUrls]).size;
     const mismatchCount = new Set([...inSitemapNotCrawled, ...crawledNotInSitemap]).size;
     const mismatchPercent = total === 0 ? 0 : (mismatchCount / total) * 100;
     if (mismatchPercent > threshold) {
         issues.push(issue("sitemap-mismatch-threshold", "critical", `Sitemap mismatch is ${mismatchPercent.toFixed(1)}% (threshold ${threshold}%). ` +
-            "Sitemap URLs must match crawled URLs exactly, including hostname."));
+            "Sitemap URLs must match crawled URLs exactly, including hostname.", "Align sitemap hostnames and paths with the live site (apex vs www) and regenerate the sitemap."));
     }
     return {
         sources: input.sources,

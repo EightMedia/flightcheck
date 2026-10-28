@@ -170,6 +170,7 @@ function findingFromCheck(issue, category, scope, extras = {}) {
         scope,
         title: humanizeId(issue.id),
         message: issue.message,
+        ...(issue.fix ? { fix: issue.fix } : {}),
         ...extras,
     };
 }
@@ -182,29 +183,35 @@ function pushUnique(findings, finding) {
     findings.push(finding);
 }
 function collectSeoFindings(fields, scope, count, extras = {}) {
-    return fields.map((field) => ({
-        id: field,
-        severity: "error",
-        category: "seo",
-        scope,
-        title: fieldTitle(field),
-        message: fieldMessage(field, scope, extras.template),
-        count,
-        ...extras,
-    }));
+    return fields.map((field) => {
+        const message = fieldMessage(field, scope, extras.template);
+        return {
+            id: field,
+            severity: "error",
+            category: "seo",
+            scope,
+            title: fieldTitle(field),
+            message,
+            fix: message,
+            count,
+            ...extras,
+        };
+    });
 }
 function collectBestPracticeFindings(keys, scope, count, extras = {}) {
     return keys
         .filter((key) => BEST_PRACTICE_IDS.has(key))
         .map((key) => {
         const copy = BEST_PRACTICE_COPY[key];
+        const message = copy?.message ?? `Fix ${key}.`;
         return {
             id: key,
             severity: copy?.severity ?? "review",
             category: "best-practices",
             scope,
             title: copy?.title ?? humanizeId(key),
-            message: copy?.message ?? `Fix ${key}.`,
+            message,
+            fix: message,
             count,
             ...extras,
         };
@@ -215,13 +222,15 @@ function collectA11yFindings(keys, scope, count, extras = {}) {
         .filter((key) => A11Y_IDS.has(key))
         .map((key) => {
         const copy = A11Y_COPY[key];
+        const message = copy?.message ?? `Fix accessibility issue: ${key}.`;
         return {
             id: key,
             severity: "warning",
             category: "a11y",
             scope,
             title: copy?.title ?? humanizeId(key),
-            message: copy?.message ?? `Fix accessibility issue: ${key}.`,
+            message,
+            fix: message,
             count,
             ...extras,
         };
@@ -284,6 +293,7 @@ function buildFindings(analysis, tier1) {
                 scope: "page",
                 title: `Exposed ${secret.provider} ${secret.type}`,
                 message: `Rotate or remove this secret. Masked value: ${secret.masked} (source: ${secret.source}).`,
+                fix: "Remove the secret from client-side HTML/JS, rotate the credential, and load secrets only from a server-side env.",
                 urls: [page.url],
                 count: 1,
             });
@@ -313,13 +323,15 @@ function buildFindings(analysis, tier1) {
     if (!analysis.redirectOnly) {
         const seoById = aggregatePageFindings(analysis.pageFixes, (fix) => fix.remainingFields.map((id) => ({ id })));
         for (const [id, { urls }] of seoById) {
+            const message = fieldMessage(id, "page");
             findings.push({
                 id,
                 severity: "error",
                 category: "seo",
                 scope: "page",
                 title: fieldTitle(id),
-                message: fieldMessage(id, "page"),
+                message,
+                fix: message,
                 urls,
                 count: urls.length,
             });
@@ -327,13 +339,15 @@ function buildFindings(analysis, tier1) {
         const bestById = aggregatePageFindings(analysis.pageFixes, (fix) => fix.remainingWarningKeys.filter((key) => BEST_PRACTICE_IDS.has(key)).map((id) => ({ id })));
         for (const [id, { urls }] of bestById) {
             const copy = BEST_PRACTICE_COPY[id];
+            const message = copy?.message ?? `Fix ${id}.`;
             findings.push({
                 id,
                 severity: copy?.severity ?? "review",
                 category: "best-practices",
                 scope: "page",
                 title: copy?.title ?? humanizeId(id),
-                message: copy?.message ?? `Fix ${id}.`,
+                message,
+                fix: message,
                 urls,
                 count: urls.length,
             });
@@ -341,13 +355,15 @@ function buildFindings(analysis, tier1) {
         const a11yById = aggregatePageFindings(analysis.pageFixes, (fix) => fix.remainingA11yIssues.map((issue) => ({ id: issue.id, message: issue.message })));
         for (const [id, { urls, message }] of a11yById) {
             const copy = A11Y_COPY[id];
+            const resolved = message ?? copy?.message ?? `Fix accessibility issue: ${id}.`;
             findings.push({
                 id,
                 severity: "warning",
                 category: "a11y",
                 scope: "page",
                 title: copy?.title ?? humanizeId(id),
-                message: message ?? copy?.message ?? `Fix accessibility issue: ${id}.`,
+                message: resolved,
+                fix: copy?.message ?? resolved,
                 urls,
                 count: urls.length,
             });
@@ -439,6 +455,8 @@ function formatFindingMarkdown(finding) {
     const lines = [`#### ${finding.title}`, "", finding.message, "", `- Where: ${scopeLabel(finding)}`];
     if (finding.category)
         lines.push(`- Category: ${finding.category}`);
+    if (finding.fix)
+        lines.push(`- Fix: ${finding.fix}`);
     if (finding.urls && finding.urls.length > 1) {
         lines.push("- Pages:");
         for (const url of finding.urls.slice(0, 20)) {

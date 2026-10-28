@@ -17,22 +17,22 @@ export function analyzeSecurityHeaders(headers, options = {}) {
     const referrerPolicy = headerValue(headers, "referrer-policy");
     const permissionsPolicy = headerValue(headers, "permissions-policy");
     if (isHttps && !hsts) {
-        issues.push(issue("missing-hsts", "error", "Strict-Transport-Security header is missing on HTTPS."));
+        issues.push(issue("missing-hsts", "error", "Strict-Transport-Security header is missing on HTTPS.", "Send `Strict-Transport-Security: max-age=31536000; includeSubDomains` on HTTPS responses (hosting or app headers)."));
     }
     if (!csp) {
-        issues.push(issue("missing-csp", "warning", "Content-Security-Policy header is missing."));
+        issues.push(issue("missing-csp", "warning", "Content-Security-Policy header is missing.", "Add a Content-Security-Policy header tailored to your app (start with report-only if needed)."));
     }
     if (!xFrameOptions && !hasFrameAncestorsCsp(csp)) {
-        issues.push(issue("missing-clickjacking-protection", "warning", "Neither X-Frame-Options nor CSP frame-ancestors is set."));
+        issues.push(issue("missing-clickjacking-protection", "warning", "Neither X-Frame-Options nor CSP frame-ancestors is set.", "Set `X-Frame-Options: DENY` (or SAMEORIGIN) or add `frame-ancestors` to your Content-Security-Policy."));
     }
     if (!nosniff || nosniff.toLowerCase() !== "nosniff") {
-        issues.push(issue("missing-nosniff", "warning", "X-Content-Type-Options: nosniff is missing."));
+        issues.push(issue("missing-nosniff", "warning", "X-Content-Type-Options: nosniff is missing.", "Send `X-Content-Type-Options: nosniff` on all responses."));
     }
     if (!referrerPolicy) {
-        issues.push(issue("missing-referrer-policy", "review", "Referrer-Policy header is missing."));
+        issues.push(issue("missing-referrer-policy", "review", "Referrer-Policy header is missing.", "Send a Referrer-Policy such as `strict-origin-when-cross-origin`."));
     }
     if (!permissionsPolicy) {
-        issues.push(issue("missing-permissions-policy", "review", "Permissions-Policy header is missing."));
+        issues.push(issue("missing-permissions-policy", "review", "Permissions-Policy header is missing.", "Add a Permissions-Policy header that disables unused browser features (camera, mic, geolocation, …)."));
     }
     return issues;
 }

@@ -90,7 +90,44 @@ describe("buildStructuredReport", () => {
           hostname: "example.com",
           records: { a: ["1.2.3.4"], aaaa: [], cname: [], mx: [], txt: [], ns: [] },
           mail: {},
-          issues: [{ id: "missing-dmarc", severity: "warning", message: "No DMARC TXT record found." }],
+          issues: [
+            {
+              id: "missing-dmarc",
+              severity: "warning",
+              message: "No DMARC TXT record found.",
+              fix: "Add a TXT record on `_dmarc.example.com` starting with `v=DMARC1;`.",
+            },
+          ],
+        },
+        agentReady: {
+          url: "https://example.com",
+          findings: {
+            robotsTxt: { status: 200, hasContentSignals: false, contentSignals: [], aiBotUserAgents: [] },
+            llmsTxt: { url: "https://example.com/llms.txt", status: 404, hasTitle: false },
+            markdownNegotiation: {
+              url: "https://example.com",
+              status: 200,
+              contentType: "text/html",
+              supportsMarkdown: false,
+            },
+            linkHeaders: { relations: [] },
+            wellKnown: {
+              mcpServerCard: false,
+              agentSkills: false,
+              apiCatalog: false,
+              ard: false,
+              a2aAgentCard: false,
+            },
+          },
+          issues: [
+            {
+              id: "agent-missing-protocol-discovery",
+              severity: "review",
+              message:
+                "No agent protocol discovery endpoints found (MCP Server Card, Agent Skills, API Catalog, ARD, or A2A Agent Card).",
+              fix: "Add /.well-known/agent-skills/index.json. Use an empty array if no skills are available (`skills: []`).",
+            },
+          ],
         },
       },
       {
@@ -99,7 +136,9 @@ describe("buildStructuredReport", () => {
       }
     );
     const markdown = renderReportMarkdown(report);
+    const protocol = report.findings.find((finding) => finding.id === "agent-missing-protocol-discovery");
 
+    expect(protocol?.fix).toContain("agent-skills/index.json");
     expect(markdown).toContain("# Flightcheck report");
     expect(markdown).toContain("Flightcheck: 1.0.1");
     expect(markdown).toContain("Flags: `https://example.com --errors-only`");
@@ -107,6 +146,9 @@ describe("buildStructuredReport", () => {
     expect(markdown).toContain("### DNS");
     expect(markdown).toContain("## Findings");
     expect(markdown).toContain("Missing color-scheme meta tag");
+    expect(markdown).toContain(
+      "- Fix: Add /.well-known/agent-skills/index.json. Use an empty array if no skills are available (`skills: []`)."
+    );
     expect(markdown).not.toContain("fix-manifest");
     expect(markdown).not.toContain("agent-jobs");
   });

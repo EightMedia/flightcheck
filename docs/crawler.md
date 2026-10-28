@@ -34,7 +34,7 @@ Key flags:
 - `--errors-only` include only critical/error findings in the Markdown report
 - `--checks <ids>` comma-separated checks; default: all implemented checks (`crawl`, `security-headers`, `dns`, `robots-txt`, `sitemap`, `analyze`)
 - `--parallel` run independent checks in the same wave concurrently
-- `--max-pages <n>`
+- `--max-pages <n>` (default **100**) — hard crawl budget with smart URL selection (see below)
 - `--delay-ms <n>`
 - `--timeout-ms <n>`
 - `--concurrency <n>`
@@ -149,10 +149,26 @@ Additionally:
 
 - Only internal links are crawled. Links are discovered via `extractInternalLinks` and added to the queue; Crawlee's `enqueueLinks` is intentionally not used.
 - Sitemap URLs are added to the crawl queue by default so pages from `sitemap.xml` are visited even when they are not reachable via internal links.
-- `--max-pages` is the hard stop (`maxRequestsPerCrawl`). The crawl stops once this count is processed, even if unvisited links remain. Increase `--max-pages` to crawl the entire site.
+- `--max-pages` (default **100**) is the hard stop (`maxRequestsPerCrawl`). The crawl stops once this count is processed, even if unvisited links remain. Raise `--max-pages` (for example `1000` or higher) when you need broader coverage of a large site.
+
+### Smart page selection
+
+Large sitemaps often list thousands of archive detail URLs. Selection is based on **URL-tree shape**, not slug names (so `/stories`, `/nieuws`, or `/whatever` all work the same):
+
+1. Build a path tree from known URLs (sitemap seeds and later discoveries)
+2. Treat a path as a **list parent** when it has many direct children that are mostly **leaves** (no further subpages) — typical archive indexes
+3. Prefer **home**, other **structural** shallow pages, and those **list** indexes
+4. Under each list parent, take only a **round-robin sample** of leaf URLs until `--max-pages` is filled
+
+Seed order follows that ranking (FIFO). Structural links discovered from HTML are pushed to the front of the queue (`forefront`); leaf URLs under list parents are capped so one archive cannot flood the budget.
+
+Selection lives in `src/crawler/smartPageSelection.ts`.
 - Query parameters and hashes do not count toward URL identity.
 - Non-HTML responses are reported with `note`.
 - Links to files with a known non-HTML extension (such as `.pdf`, `.zip`, images, video, fonts) are not added to the queue, so Crawlee does not generate unnecessary retries and errors.
 - With `--respect-robots-txt`, URLs excluded by `robots.txt` are skipped.
 - After each URL, output is written atomically.
 - On `SIGINT`, the crawl stops gracefully while preserving partial output.
+- Crawlee request-queue files go under `.flightcheckStorage/<run-hash>/` (not the generic
+  `storage/` folder). That subdirectory is deleted when the crawl finishes, so a second
+  concurrent run keeps its own files until it completes.

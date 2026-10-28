@@ -25,8 +25,8 @@ robots.txt existence and sitemaps remain in the existing `robots-txt` and `sitem
 - Network runner: `runAgentReadyCheck()` — parallel fetches of robots, llms.txt, homepage
   (HTML + markdown Accept), and well-known endpoints
 - Wave 1 (parallel with crawl / DNS / headers / robots)
-- Report: issues land in `findings[]` (`category: "infra"`) in `*-report.json`; the
-  Markdown report lists them under **Findings**
+- Report: issues land in `findings[]` (`category: "infra"`) in `*-report.json` with a
+  `fix` suggestion; the Markdown report lists them under **Findings** with a Fix line
 
 ## CLI
 

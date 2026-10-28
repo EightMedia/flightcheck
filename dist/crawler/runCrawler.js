@@ -1,13 +1,15 @@
-import { CheerioCrawler, RequestQueue, log, LogLevel } from "crawlee";
+import { CheerioCrawler, Configuration, MemoryStorage, RequestQueue, log, LogLevel } from "crawlee";
 import pino from "pino";
 import { DEFAULT_BURST_DELAY_MS, DEFAULT_CONCURRENCY, DEFAULT_DELAY_MS, DEFAULT_MAX_PAGES, DEFAULT_TIMEOUT_MS, DEFAULT_USER_AGENT, } from "./defaults.js";
 import { CHECK_GROUPS } from "./checkGroups.js";
+import { cleanupRunStorageDir, createRunStoragePath } from "./crawleeStorage.js";
 import { extractInternalLinks, extractVerificationRecord } from "./extractors.js";
 import { detectStackFromHtml } from "./stack.js";
 import { extractSameOriginScripts } from "./jsAssets.js";
 import { loadRobotsPolicy } from "./robots.js";
 import { writeReportToFile } from "./reporter.js";
 import { scanText } from "./secrets.js";
+import { createDiscoveryGate } from "./smartPageSelection.js";
 import { matchesExcludePattern, normalizeUrl, sleep } from "./urlUtils.js";
 const MAX_JS_ASSET_BYTES = 5_000_000; // 5 MB — skip larger bundles to bound memory
 export async function runCrawler(options) {
@@ -81,92 +83,118 @@ export async function runCrawler(options) {
         return { secrets, scannedAssets };
     };
     const robotsPolicy = respectRobotsTxt ? await loadRobotsPolicy(origin, timeoutMs) : null;
-    const requestQueue = await RequestQueue.open();
-    const records = [];
-    const seen = new Set();
-    for (const seed of seedUrls) {
-        if (!matchesExcludePattern(seed, excludePatterns)) {
-            await requestQueue.addRequest({ url: seed, uniqueKey: normalizeUrl(seed) });
-            seen.add(normalizeUrl(seed));
-        }
-    }
-    let processedSinceBurst = 0;
-    let interrupted = false;
-    const persist = () => {
-        writeReportToFile(records, options.outputPath);
-        return records;
-    };
-    process.on("SIGINT", async () => {
-        interrupted = true;
-        logger.info("[crawl] SIGINT ontvangen, graceful stop gestart");
+    // Per-run Crawlee storage so concurrent crawls do not share/purge each other,
+    // then remove this run's subdirectory when finished.
+    const { runDir, runId } = createRunStoragePath({ seed: startUrl });
+    const configuration = new Configuration({
+        storageClient: new MemoryStorage({ localDataDirectory: runDir }),
+        defaultRequestQueueId: runId,
+        purgeOnStart: true,
     });
-    logger.info(`[crawl] start url=${startUrl} output=${options.outputPath} maxPages=${maxPages} concurrency=${concurrency} delayMs=${delayMs} burstDelayMs=${burstDelayMs} timeoutMs=${timeoutMs} seeds=${seedUrls.length} respectRobotsTxt=${respectRobotsTxt}`);
-    const crawler = new CheerioCrawler({
-        requestQueue,
-        maxRequestsPerCrawl: maxPages,
-        maxConcurrency: concurrency,
-        // +60 s headroom when security scanning is active: the handler does sequential JS fetches
-        // per page; the failedAssets/jsScanCache ensures dead/cached assets aren't re-fetched.
-        requestHandlerTimeoutSecs: Math.ceil(timeoutMs / 1000) + (activeGroups.has("security") ? 60 : 0),
-        requestHandler: async ({ request, body, contentType, response }) => {
-            if (interrupted)
-                return;
-            if (delayMs > 0) {
-                await sleep(delayMs);
+    try {
+        const requestQueue = await RequestQueue.open(runId, { config: configuration });
+        const records = [];
+        const seen = new Set();
+        const discovery = createDiscoveryGate(seedUrls, maxPages);
+        // Seeds are already smart-ordered (home/root/list before details); FIFO preserves that.
+        for (const seed of seedUrls) {
+            if (!matchesExcludePattern(seed, excludePatterns)) {
+                const normalized = normalizeUrl(seed);
+                await requestQueue.addRequest({ url: seed, uniqueKey: normalized });
+                seen.add(normalized);
+                discovery.remember(normalized);
             }
-            if (burstDelayMs > 0 && processedSinceBurst > 0 && processedSinceBurst % concurrency === 0) {
-                await sleep(burstDelayMs);
-            }
-            const currentUrl = normalizeUrl(request.loadedUrl ?? request.url);
-            if (robotsPolicy && !robotsPolicy.isAllowed(currentUrl)) {
-                const skipped = extractVerificationRecord("", currentUrl, null, "");
-                skipped.note = "Skipped by robots.txt policy";
-                records.push(skipped);
+        }
+        let processedSinceBurst = 0;
+        let interrupted = false;
+        const persist = () => {
+            writeReportToFile(records, options.outputPath);
+            return records;
+        };
+        process.on("SIGINT", async () => {
+            interrupted = true;
+            logger.info("[crawl] SIGINT ontvangen, graceful stop gestart");
+        });
+        logger.info(`[crawl] start url=${startUrl} output=${options.outputPath} maxPages=${maxPages} concurrency=${concurrency} delayMs=${delayMs} burstDelayMs=${burstDelayMs} timeoutMs=${timeoutMs} seeds=${seedUrls.length} respectRobotsTxt=${respectRobotsTxt} storage=${runDir}`);
+        const crawler = new CheerioCrawler({
+            requestQueue,
+            maxRequestsPerCrawl: maxPages,
+            maxConcurrency: concurrency,
+            // +60 s headroom when security scanning is active: the handler does sequential JS fetches
+            // per page; the failedAssets/jsScanCache ensures dead/cached assets aren't re-fetched.
+            requestHandlerTimeoutSecs: Math.ceil(timeoutMs / 1000) + (activeGroups.has("security") ? 60 : 0),
+            requestHandler: async ({ request, body, contentType, response }) => {
+                if (interrupted)
+                    return;
+                if (delayMs > 0) {
+                    await sleep(delayMs);
+                }
+                if (burstDelayMs > 0 && processedSinceBurst > 0 && processedSinceBurst % concurrency === 0) {
+                    await sleep(burstDelayMs);
+                }
+                const currentUrl = normalizeUrl(request.loadedUrl ?? request.url);
+                if (robotsPolicy && !robotsPolicy.isAllowed(currentUrl)) {
+                    const skipped = extractVerificationRecord("", currentUrl, null, "");
+                    skipped.note = "Skipped by robots.txt policy";
+                    records.push(skipped);
+                    const currentRecords = persist();
+                    processedSinceBurst += 1;
+                    logger.info(`[crawl] processed=${currentRecords.length} url=${currentUrl} status=robots-blocked`);
+                    return;
+                }
+                const html = typeof body === "string" ? body : "";
+                const status = response?.statusCode ?? null;
+                const effectiveContentType = contentType?.type ?? "";
+                const record = extractVerificationRecord(html, currentUrl, status, effectiveContentType, activeGroups);
+                if (activeGroups.has("stack") && effectiveContentType.includes("text/html") && html) {
+                    record.stack = { detections: detectStackFromHtml(html, currentUrl) };
+                }
+                if (activeGroups.has("security") && effectiveContentType.includes("text/html") && html) {
+                    record.security = await scanSecurity(html, currentUrl);
+                }
+                records.push(record);
                 const currentRecords = persist();
                 processedSinceBurst += 1;
-                logger.info(`[crawl] processed=${currentRecords.length} url=${currentUrl} status=robots-blocked`);
-                return;
-            }
-            const html = typeof body === "string" ? body : "";
-            const status = response?.statusCode ?? null;
-            const effectiveContentType = contentType?.type ?? "";
-            const record = extractVerificationRecord(html, currentUrl, status, effectiveContentType, activeGroups);
-            if (activeGroups.has("stack") && effectiveContentType.includes("text/html") && html) {
-                record.stack = { detections: detectStackFromHtml(html, currentUrl) };
-            }
-            if (activeGroups.has("security") && effectiveContentType.includes("text/html") && html) {
-                record.security = await scanSecurity(html, currentUrl);
-            }
-            records.push(record);
-            const currentRecords = persist();
-            processedSinceBurst += 1;
-            logger.info(`[crawl] processed=${currentRecords.length} url=${currentUrl} status=${status ?? "error"}`);
-            if (effectiveContentType.includes("text/html")) {
-                const links = extractInternalLinks(html, currentUrl, origin);
-                for (const link of links) {
-                    const normalized = normalizeUrl(link);
-                    if (seen.has(normalized))
-                        continue;
-                    if (matchesExcludePattern(normalized, excludePatterns))
-                        continue;
-                    if (robotsPolicy && !robotsPolicy.isAllowed(normalized))
-                        continue;
-                    seen.add(normalized);
-                    await requestQueue.addRequest({ url: normalized, uniqueKey: normalized });
+                logger.info(`[crawl] processed=${currentRecords.length} url=${currentUrl} status=${status ?? "error"}`);
+                if (effectiveContentType.includes("text/html")) {
+                    const links = extractInternalLinks(html, currentUrl, origin);
+                    for (const link of links) {
+                        const normalized = normalizeUrl(link);
+                        if (seen.has(normalized))
+                            continue;
+                        if (matchesExcludePattern(normalized, excludePatterns))
+                            continue;
+                        if (robotsPolicy && !robotsPolicy.isAllowed(normalized))
+                            continue;
+                        if (!discovery.allowEnqueue(normalized))
+                            continue;
+                        seen.add(normalized);
+                        discovery.remember(normalized);
+                        const forefront = discovery.isStructural(normalized);
+                        await requestQueue.addRequest({ url: normalized, uniqueKey: normalized }, { forefront });
+                    }
                 }
-            }
-        },
-        failedRequestHandler: async ({ request }, error) => {
-            const currentUrl = normalizeUrl(request.loadedUrl ?? request.url);
-            const record = extractVerificationRecord("", currentUrl, null, "");
-            record.error = error instanceof Error ? error.message : "Unknown error";
-            records.push(record);
-            const currentRecords = persist();
-            logger.info(`[crawl] processed=${currentRecords.length} url=${currentUrl} status=error`);
-        },
-    });
-    await crawler.run();
-    const finalRecords = persist();
-    logger.info(`[crawl] klaar pages=${finalRecords.length} interrupted=${interrupted}`);
-    return { records: finalRecords, interrupted };
+            },
+            failedRequestHandler: async ({ request }, error) => {
+                const currentUrl = normalizeUrl(request.loadedUrl ?? request.url);
+                const record = extractVerificationRecord("", currentUrl, null, "");
+                record.error = error instanceof Error ? error.message : "Unknown error";
+                records.push(record);
+                const currentRecords = persist();
+                logger.info(`[crawl] processed=${currentRecords.length} url=${currentUrl} status=error`);
+            },
+        }, configuration);
+        await crawler.run();
+        const finalRecords = persist();
+        logger.info(`[crawl] klaar pages=${finalRecords.length} interrupted=${interrupted}`);
+        return { records: finalRecords, interrupted };
+    }
+    finally {
+        try {
+            await cleanupRunStorageDir(runDir);
+        }
+        catch (error) {
+            logger.warn(`[crawl] kon Crawlee storage niet opruimen path=${runDir} error=${error instanceof Error ? error.message : String(error)}`);
+        }
+    }
 }

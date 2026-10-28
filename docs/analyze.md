@@ -69,7 +69,8 @@ Without `--output`, paths are derived from the input: `-raw.json` becomes
       "category": "infra",
       "scope": "origin",
       "title": "Missing Hsts",
-      "message": "Strict-Transport-Security header is missing on HTTPS."
+      "message": "Strict-Transport-Security header is missing on HTTPS.",
+      "fix": "Send `Strict-Transport-Security: max-age=31536000; includeSubDomains` on HTTPS responses (hosting or app headers)."
     }
   ]
 }
@@ -84,7 +85,8 @@ includes metadata so consumers can filter or regroup.
 | `category` | `infra` \| `seo` \| `a11y` \| `best-practices` \| `security` \| `performance` |
 | `scope` | `site-wide` \| `template` \| `page` \| `origin` |
 | `title` | Short human title |
-| `message` | What to do / what was found |
+| `message` | What was found |
+| `fix` | Concrete remediation suggestion when available |
 | `template` | Present when `scope` is `template` |
 | `urls` / `count` | Affected pages when relevant |
 
@@ -103,7 +105,7 @@ Generated from the JSON. Structure:
 1. Header — generated time, Flightcheck version, flags, source path
 2. **At a glance** — page counts and finding totals
 3. **Stack / DNS / redirect** — factual context when available
-4. **Findings** — grouped by severity for reading order, with plain-language titles
+4. **Findings** — grouped by severity for reading order, with plain-language titles and a **Fix** line when available
 
 ## Notes
 

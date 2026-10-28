@@ -8,6 +8,7 @@ import {
 import { resolveActiveGroups, type CheckGroup } from "../crawler/checkGroups.js";
 import { buildDefaultOutputPaths } from "../crawler/outputPaths.js";
 import { runCrawler } from "../crawler/runCrawler.js";
+import { selectSmartCrawlUrls } from "../crawler/smartPageSelection.js";
 import { collectSitemapPageUrls } from "./sitemap.js";
 import { isHttpUrl, matchesExcludePattern, normalizeUrl, parseExcludePatterns } from "../crawler/urlUtils.js";
 import type { CrawlCheckResult } from "./types.js";
@@ -91,6 +92,20 @@ export async function prepareCrawlSeedUrls(options: CrawlCheckOptions): Promise<
   }
 
   seedUrls = seedUrls.filter((url) => !matchesExcludePattern(url, excludePatterns));
+
+  const unlimitedSeedCount = seedUrls.length;
+  const smart = selectSmartCrawlUrls(seedUrls, Math.floor(maxPages), {
+    startUrl: normalizedStartUrl,
+  });
+  seedUrls = smart.urls;
+
+  if (unlimitedSeedCount > seedUrls.length) {
+    // Intentionally concise: full URL lists stay in sitemap compare / crawl JSON.
+    const listCount = smart.tree.listParents.size;
+    console.info(
+      `[crawl] smart max-pages: selected ${seedUrls.length}/${unlimitedSeedCount} seed URLs (limit=${Math.floor(maxPages)}, listParents=${listCount})`
+    );
+  }
 
   return { normalizedStartUrl, seedUrls, outputPath, activeGroups };
 }

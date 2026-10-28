@@ -26,6 +26,11 @@ describe("analyzeAgentReady", () => {
       wellKnown: {},
     });
 
+    const protocol = result.issues.find((entry) => entry.id === "agent-missing-protocol-discovery");
+    expect(protocol?.fix).toBe(
+      "Add /.well-known/agent-skills/index.json. Use an empty array if no skills are available (`skills: []`)."
+    );
+
     expect(result.issues.map((issue) => issue.id)).toEqual(
       expect.arrayContaining([
         "agent-missing-content-signals",

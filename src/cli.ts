@@ -39,7 +39,11 @@ async function main(): Promise<void> {
       "--checks <ids>",
       "Comma-separated checks to run (crawl,analyze,lighthouse,security-headers,dns,robots-txt,sitemap,agent-ready)"
     )
-    .option("--max-pages <n>", "Maximum number of pages", String(DEFAULT_MAX_PAGES))
+    .option(
+      "--max-pages <n>",
+      "Maximum pages to crawl (default 100; prefers structural pages, samples leaf URLs under large list branches)",
+      String(DEFAULT_MAX_PAGES)
+    )
     .option("--delay-ms <n>", "Delay between requests in ms", String(DEFAULT_DELAY_MS))
     .option("--timeout-ms <n>", "Request timeout in ms", String(DEFAULT_TIMEOUT_MS))
     .option("--concurrency <n>", "Maximum concurrent requests", String(DEFAULT_CONCURRENCY))

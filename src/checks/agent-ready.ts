@@ -167,7 +167,8 @@ export function analyzeAgentReady(input: AnalyzeAgentReadyInput): AgentReadyChec
       issue(
         "agent-robots-missing",
         "warning",
-        "robots.txt is missing or empty; agents cannot discover crawl policy or Content Signals."
+        "robots.txt is missing or empty; agents cannot discover crawl policy or Content Signals.",
+        "Add a robots.txt at the site root (for example public/robots.txt) with at least `User-agent: *` and a Sitemap line."
       )
     );
   } else {
@@ -176,7 +177,8 @@ export function analyzeAgentReady(input: AnalyzeAgentReadyInput): AgentReadyChec
         issue(
           "agent-missing-content-signals",
           "warning",
-          "robots.txt has no Content-Signal directives (ai-train / search / ai-input)."
+          "robots.txt has no Content-Signal directives (ai-train / search / ai-input).",
+          "Add a Content-Signal under `User-agent: *` in robots.txt, for example `Content-Signal: search=yes,ai-train=no`."
         )
       );
     }
@@ -185,7 +187,8 @@ export function analyzeAgentReady(input: AnalyzeAgentReadyInput): AgentReadyChec
         issue(
           "agent-missing-ai-bot-rules",
           "warning",
-          "robots.txt has no explicit AI bot User-agent rules (e.g. GPTBot, ClaudeBot, Google-Extended)."
+          "robots.txt has no explicit AI bot User-agent rules (e.g. GPTBot, ClaudeBot, Google-Extended).",
+          "Add explicit `User-agent` blocks for AI crawlers (GPTBot, ClaudeBot, Google-Extended, …) with Allow/Disallow as intended."
         )
       );
     }
@@ -193,11 +196,21 @@ export function analyzeAgentReady(input: AnalyzeAgentReadyInput): AgentReadyChec
 
   if (!llmsOk) {
     issues.push(
-      issue("agent-missing-llms-txt", "warning", "llms.txt is missing or not a plain-text overview at /llms.txt.")
+      issue(
+        "agent-missing-llms-txt",
+        "warning",
+        "llms.txt is missing or not a plain-text overview at /llms.txt.",
+        "Add /llms.txt as plain text with an H1 title (`# Site Name`) and links to the most important content."
+      )
     );
   } else if (!llmsHasTitle) {
     issues.push(
-      issue("agent-llms-txt-incomplete", "review", "llms.txt exists but has no H1 title line (# Site Name).")
+      issue(
+        "agent-llms-txt-incomplete",
+        "review",
+        "llms.txt exists but has no H1 title line (# Site Name).",
+        "Start llms.txt with an H1 line, for example `# Site Name`."
+      )
     );
   }
 
@@ -206,7 +219,8 @@ export function analyzeAgentReady(input: AnalyzeAgentReadyInput): AgentReadyChec
       issue(
         "agent-missing-markdown-negotiation",
         "warning",
-        "Homepage does not negotiate Markdown (Accept: text/markdown → Content-Type: text/markdown)."
+        "Homepage does not negotiate Markdown (Accept: text/markdown → Content-Type: text/markdown).",
+        "When the request has `Accept: text/markdown`, return the page body as Markdown with `Content-Type: text/markdown` (middleware or route)."
       )
     );
   }
@@ -216,7 +230,8 @@ export function analyzeAgentReady(input: AnalyzeAgentReadyInput): AgentReadyChec
       issue(
         "agent-missing-link-headers",
         "review",
-        'Homepage has no agent-useful Link headers (rel="api-catalog", "service-doc", "service-desc", or "describedby").'
+        'Homepage has no agent-useful Link headers (rel="api-catalog", "service-doc", "service-desc", or "describedby").',
+        'Add Link response headers on the homepage, for example `Link: </.well-known/api-catalog>; rel="api-catalog"`.'
       )
     );
   }
@@ -227,7 +242,8 @@ export function analyzeAgentReady(input: AnalyzeAgentReadyInput): AgentReadyChec
       issue(
         "agent-missing-protocol-discovery",
         "review",
-        "No agent protocol discovery endpoints found (MCP Server Card, Agent Skills, API Catalog, ARD, or A2A Agent Card)."
+        "No agent protocol discovery endpoints found (MCP Server Card, Agent Skills, API Catalog, ARD, or A2A Agent Card).",
+        "Add /.well-known/agent-skills/index.json. Use an empty array if no skills are available (`skills: []`)."
       )
     );
   }

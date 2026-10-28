@@ -62,19 +62,19 @@ export function analyzeRedirect(input) {
         };
     }
     if (!input.location) {
-        issues.push(issue("redirect-missing-location", "error", "Redirect response is missing a Location header."));
+        issues.push(issue("redirect-missing-location", "error", "Redirect response is missing a Location header.", "Include a valid Location header on redirect responses pointing at the canonical URL."));
     }
     else if (!input.resolvedTarget) {
-        issues.push(issue("redirect-invalid-location", "error", "Redirect Location header is not a valid URL."));
+        issues.push(issue("redirect-invalid-location", "error", "Redirect Location header is not a valid URL.", "Set Location to an absolute http(s) URL for the redirect target."));
     }
     if (input.status !== null && !PERMANENT_REDIRECT_STATUS_CODES.has(input.status)) {
-        issues.push(issue("redirect-temporary-status", "warning", `Redirect uses status ${input.status}; use 301 or 308 for permanent domain redirects.`));
+        issues.push(issue("redirect-temporary-status", "warning", `Redirect uses status ${input.status}; use 301 or 308 for permanent domain redirects.`, "Change the redirect status to 301 or 308 for permanent domain redirects."));
     }
     if (isHttps && !input.headers["strict-transport-security"]) {
-        issues.push(issue("redirect-missing-hsts", "warning", "Strict-Transport-Security header is missing on the redirect response."));
+        issues.push(issue("redirect-missing-hsts", "warning", "Strict-Transport-Security header is missing on the redirect response.", "Send Strict-Transport-Security on the HTTPS redirect response as well as on final pages."));
     }
     if (input.resolvedTarget && input.targetStatus !== null && input.targetStatus >= 400) {
-        issues.push(issue("redirect-target-unreachable", "error", `Redirect target returned status ${input.targetStatus}: ${input.resolvedTarget}`));
+        issues.push(issue("redirect-target-unreachable", "error", `Redirect target returned status ${input.targetStatus}: ${input.resolvedTarget}`, "Fix the redirect target so it returns a successful response, or point Location at a working URL."));
     }
     return {
         ...input,
@@ -87,27 +87,27 @@ export function analyzeWwwAliasRedirect(canonicalUrl, probe) {
     const issues = [];
     const canonicalHost = hostnameFromUrl(canonicalUrl);
     if (probe.status === null) {
-        issues.push(issue("redirect-www-alias-unreachable", "error", `Alternate host is unreachable and should redirect to ${canonicalHost}: ${probe.url}`));
+        issues.push(issue("redirect-www-alias-unreachable", "error", `Alternate host is unreachable and should redirect to ${canonicalHost}: ${probe.url}`, `Configure DNS and hosting so the alternate host responds and permanently redirects to ${canonicalHost}.`));
         return issues;
     }
     if (!REDIRECT_STATUS_CODES.has(probe.status)) {
-        issues.push(issue("redirect-www-alias-no-redirect", "error", `Alternate host should redirect to ${canonicalHost} but returned status ${probe.status}: ${probe.url}`));
+        issues.push(issue("redirect-www-alias-no-redirect", "error", `Alternate host should redirect to ${canonicalHost} but returned status ${probe.status}: ${probe.url}`, `Configure the alternate host to respond with 301/308 Location pointing at ${canonicalHost}.`));
         return issues;
     }
     if (!probe.location) {
-        issues.push(issue("redirect-www-alias-missing-location", "error", `Alternate host redirect is missing a Location header: ${probe.url}`));
+        issues.push(issue("redirect-www-alias-missing-location", "error", `Alternate host redirect is missing a Location header: ${probe.url}`, `Add a Location header on the alternate-host redirect targeting ${canonicalHost}.`));
     }
     else if (!probe.resolvedTarget) {
-        issues.push(issue("redirect-www-alias-invalid-location", "error", `Alternate host redirect Location header is not a valid URL: ${probe.url}`));
+        issues.push(issue("redirect-www-alias-invalid-location", "error", `Alternate host redirect Location header is not a valid URL: ${probe.url}`, `Set Location to an absolute http(s) URL on ${canonicalHost}.`));
     }
     else if (hostnameFromUrl(probe.resolvedTarget) !== canonicalHost) {
-        issues.push(issue("redirect-www-alias-wrong-target", "error", `Alternate host redirects to ${probe.resolvedTarget} instead of ${canonicalHost}: ${probe.url}`));
+        issues.push(issue("redirect-www-alias-wrong-target", "error", `Alternate host redirects to ${probe.resolvedTarget} instead of ${canonicalHost}: ${probe.url}`, `Point the alternate-host redirect at the canonical hostname (${canonicalHost}).`));
     }
     if (probe.status !== null && !PERMANENT_REDIRECT_STATUS_CODES.has(probe.status)) {
-        issues.push(issue("redirect-www-alias-temporary-status", "warning", `Alternate host redirect uses status ${probe.status}; use 301 or 308 for permanent domain redirects: ${probe.url}`));
+        issues.push(issue("redirect-www-alias-temporary-status", "warning", `Alternate host redirect uses status ${probe.status}; use 301 or 308 for permanent domain redirects: ${probe.url}`, "Change the alternate-host redirect status to 301 or 308."));
     }
     if (probe.resolvedTarget && probe.targetStatus !== null && probe.targetStatus >= 400) {
-        issues.push(issue("redirect-www-alias-target-unreachable", "error", `Alternate host redirect target returned status ${probe.targetStatus}: ${probe.resolvedTarget}`));
+        issues.push(issue("redirect-www-alias-target-unreachable", "error", `Alternate host redirect target returned status ${probe.targetStatus}: ${probe.resolvedTarget}`, "Fix the canonical target URL so the alternate-host redirect lands on a successful page."));
     }
     return issues;
 }

@@ -83,11 +83,25 @@ export async function analyzeDnsRecords(input: string): Promise<DnsCheckResult> 
   const skipMailAuthIssues = isPlatformPreviewHostname(hostname);
 
   if (!skipMailAuthIssues && !spf) {
-    issues.push(issue("missing-spf", "warning", "No SPF TXT record found."));
+    issues.push(
+      issue(
+        "missing-spf",
+        "warning",
+        "No SPF TXT record found.",
+        `Add a TXT record on ${hostname} starting with \`v=spf1\` that lists your mail senders.`
+      )
+    );
   }
 
   if (!skipMailAuthIssues && !dmarc) {
-    issues.push(issue("missing-dmarc", "warning", "No DMARC TXT record found."));
+    issues.push(
+      issue(
+        "missing-dmarc",
+        "warning",
+        "No DMARC TXT record found.",
+        `Add a TXT record on \`_dmarc.${hostname}\` starting with \`v=DMARC1;\` (for example \`p=none; rua=mailto:dmarc@${hostname}\`).`
+      )
+    );
   }
 
   return {

@@ -47,15 +47,15 @@ export function analyzeRobotsTxt(input) {
     const issues = [];
     const { url, status, body } = input;
     if (status === null || status === 404) {
-        issues.push(issue("robots-missing", "warning", "robots.txt is missing."));
+        issues.push(issue("robots-missing", "warning", "robots.txt is missing.", "Publish /robots.txt at the site origin with at least `User-agent: *` and a Sitemap directive."));
         return { url, status, body, sitemapUrls: [], issues };
     }
     if (!body) {
-        issues.push(issue("robots-unparseable", "error", "robots.txt response body is empty."));
+        issues.push(issue("robots-unparseable", "error", "robots.txt response body is empty.", "Return a non-empty robots.txt body with valid User-agent / Allow / Disallow / Sitemap lines."));
         return { url, status, body, sitemapUrls: [], issues };
     }
     if (hasMalformedRobotsLines(body)) {
-        issues.push(issue("robots-unparseable", "error", "robots.txt contains malformed directives."));
+        issues.push(issue("robots-unparseable", "error", "robots.txt contains malformed directives.", "Fix robots.txt syntax: one directive per line (`User-agent:`, `Allow:`, `Disallow:`, `Sitemap:`)."));
     }
     let sitemapUrls = [];
     try {
@@ -64,17 +64,17 @@ export function analyzeRobotsTxt(input) {
         sitemapUrls = parsed.getSitemaps();
     }
     catch {
-        issues.push(issue("robots-unparseable", "error", "robots.txt could not be parsed."));
+        issues.push(issue("robots-unparseable", "error", "robots.txt could not be parsed.", "Validate robots.txt content and encoding; ensure it is plain text with standard directives."));
         return { url, status, body, sitemapUrls: [], issues };
     }
     if (sitemapUrls.length === 0) {
         sitemapUrls = extractSitemapUrls(body);
     }
     if (blocksAllUserAgents(body, url)) {
-        issues.push(issue("robots-blocks-all", "critical", "robots.txt disallows all crawling for User-agent: *."));
+        issues.push(issue("robots-blocks-all", "critical", "robots.txt disallows all crawling for User-agent: *.", "Remove or narrow `Disallow: /` under `User-agent: *` so search engines and agents can crawl public pages."));
     }
     if (sitemapUrls.length === 0) {
-        issues.push(issue("robots-missing-sitemap", "warning", "robots.txt has no Sitemap directive."));
+        issues.push(issue("robots-missing-sitemap", "warning", "robots.txt has no Sitemap directive.", "Add a Sitemap line pointing at your sitemap, for example `Sitemap: https://example.com/sitemap.xml`."));
     }
     return { url, status, body, sitemapUrls, issues };
 }

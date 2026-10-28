@@ -18,6 +18,8 @@ export type ReportFinding = {
     scope: FindingScope;
     title: string;
     message: string;
+    /** Concrete remediation suggestion when available. */
+    fix?: string;
     template?: string;
     urls?: string[];
     count?: number;
