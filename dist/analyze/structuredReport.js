@@ -1,3 +1,4 @@
+import { formatCliFlags, getPackageVersion } from "../version.js";
 import { buildReportAnalysis, } from "./report.js";
 export const FLIGHTCHECK_REPORT_VERSION = 1;
 const A11Y_IDS = new Set([
@@ -409,6 +410,8 @@ export async function buildStructuredReport(sourcePath, records, tier1 = {}, opt
     const findings = buildFindings(analysis, tier1);
     return {
         version: FLIGHTCHECK_REPORT_VERSION,
+        flightcheckVersion: options.flightcheckVersion ?? getPackageVersion(),
+        flags: options.flags ?? [],
         generatedAt: options.generatedAt ?? new Date().toISOString(),
         source: sourcePath,
         redirectOnly: analysis.redirectOnly,
@@ -457,6 +460,8 @@ export function renderReportMarkdown(report) {
         "# Flightcheck report",
         "",
         `Generated: ${report.generatedAt}`,
+        `Flightcheck: ${report.flightcheckVersion}`,
+        `Flags: \`${formatCliFlags(report.flags)}\``,
         `Source: \`${report.source}\``,
         "",
         "## At a glance",

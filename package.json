@@ -1,6 +1,6 @@
 {
   "name": "@eightmedia/flightcheck",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Pre-launch website audit: crawl SEO/a11y/security checks and emit structured JSON + Markdown reports.",
   "license": "GPL-3.0",
   "type": "module",

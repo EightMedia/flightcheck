@@ -4,6 +4,7 @@ import { basename, resolve } from "node:path";
 import { Command } from "commander";
 import { runAnalyzeCheck } from "./checks/analyze.js";
 import { defaultReportPathForInput } from "./crawler/outputPaths.js";
+import { cliFlagsFromArgv, getPackageVersion } from "./version.js";
 
 async function main(): Promise<void> {
   const sanitizedArgv = [...process.argv];
@@ -11,10 +12,13 @@ async function main(): Promise<void> {
   if (separatorIndex >= 2) {
     sanitizedArgv.splice(separatorIndex, 1);
   }
+  const runFlags = cliFlagsFromArgv(sanitizedArgv);
+  const flightcheckVersion = getPackageVersion();
 
   const program = new Command();
   program
     .name("flightcheck-analyze")
+    .version(flightcheckVersion)
     .description("Analyze crawl JSON and generate structured JSON + Markdown reports.")
     .argument("<input>", "Input JSON report file path")
     .option("--output <file>", "Output Markdown file path")
@@ -25,6 +29,8 @@ async function main(): Promise<void> {
         inputPath,
         reportPath: resolve(options.output ?? defaultReportPathForInput(inputPath)),
         errorsOnly: options.errorsOnly,
+        flightcheckVersion,
+        flags: runFlags,
       });
 
       process.stdout.write(

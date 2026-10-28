@@ -23,6 +23,10 @@ export type AnalyzeCheckOptions = {
   writeReport?: boolean;
   redirectOnly?: boolean;
   tier1?: Tier1ReportData;
+  /** npm package version recorded in the report (defaults to installed package). */
+  flightcheckVersion?: string;
+  /** CLI flags recorded in the report. */
+  flags?: string[];
 };
 
 function loadRecords(options: AnalyzeCheckOptions): { records: ReportRecord[]; inputPath: string } {
@@ -62,6 +66,8 @@ export async function runAnalyzeCheck(options: AnalyzeCheckOptions): Promise<Ana
   const report: FlightcheckReport = await buildStructuredReport(inputPath, records, options.tier1, {
     redirectOnly,
     stackProfile,
+    flightcheckVersion: options.flightcheckVersion,
+    flags: options.flags,
   });
 
   // errorsOnly currently filters only the Markdown presentation of page-level noise;

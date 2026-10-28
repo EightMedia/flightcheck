@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.0.1] — 2026-10-28
+
+### Added
+
+- Reports record `flightcheckVersion` and CLI `flags` in `*-report.json` and the Markdown header
+
 ## [1.0.0] — 2026-10-27
 
 ### Added

@@ -2,7 +2,7 @@ import { defineConfig } from "vitest/config";
 
 export default defineConfig({
   test: {
-    // Only run source tests; never the compiled copies emitted into dist/.
-    include: ["src/**/*.test.ts"],
+    // Source co-located tests + top-level tests/; never compiled copies in dist/.
+    include: ["src/**/*.test.ts", "tests/**/*.test.ts"],
   },
 });

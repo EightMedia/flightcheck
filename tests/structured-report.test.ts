@@ -50,10 +50,16 @@ describe("buildStructuredReport", () => {
           ],
         },
       },
-      { generatedAt: "2026-10-27T12:00:00.000Z" }
+      {
+        generatedAt: "2026-10-27T12:00:00.000Z",
+        flightcheckVersion: "1.0.1",
+        flags: ["https://example.com", "--quiet"],
+      }
     );
 
     expect(report.version).toBe(1);
+    expect(report.flightcheckVersion).toBe("1.0.1");
+    expect(report.flags).toEqual(["https://example.com", "--quiet"]);
     expect(report.analysis.pagesAnalyzed).toBe(2);
     expect(report.findings.some((finding) => finding.id === "missing-hsts")).toBe(true);
     expect(report.findings.some((finding) => finding.id === "colorScheme")).toBe(true);
@@ -76,17 +82,27 @@ describe("buildStructuredReport", () => {
   });
 
   it("renders plain-language Markdown from the JSON model", async () => {
-    const report = await buildStructuredReport("fixture-raw.json", [makeRecord()], {
-      dns: {
-        hostname: "example.com",
-        records: { a: ["1.2.3.4"], aaaa: [], cname: [], mx: [], txt: [], ns: [] },
-        mail: {},
-        issues: [{ id: "missing-dmarc", severity: "warning", message: "No DMARC TXT record found." }],
+    const report = await buildStructuredReport(
+      "fixture-raw.json",
+      [makeRecord()],
+      {
+        dns: {
+          hostname: "example.com",
+          records: { a: ["1.2.3.4"], aaaa: [], cname: [], mx: [], txt: [], ns: [] },
+          mail: {},
+          issues: [{ id: "missing-dmarc", severity: "warning", message: "No DMARC TXT record found." }],
+        },
       },
-    });
+      {
+        flightcheckVersion: "1.0.1",
+        flags: ["https://example.com", "--errors-only"],
+      }
+    );
     const markdown = renderReportMarkdown(report);
 
     expect(markdown).toContain("# Flightcheck report");
+    expect(markdown).toContain("Flightcheck: 1.0.1");
+    expect(markdown).toContain("Flags: `https://example.com --errors-only`");
     expect(markdown).toContain("## At a glance");
     expect(markdown).toContain("### DNS");
     expect(markdown).toContain("## Findings");
@@ -95,3 +111,4 @@ describe("buildStructuredReport", () => {
     expect(markdown).not.toContain("agent-jobs");
   });
 });
+

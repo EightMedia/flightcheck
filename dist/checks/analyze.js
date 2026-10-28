@@ -37,6 +37,8 @@ export async function runAnalyzeCheck(options) {
     const report = await buildStructuredReport(inputPath, records, options.tier1, {
         redirectOnly,
         stackProfile,
+        flightcheckVersion: options.flightcheckVersion,
+        flags: options.flags,
     });
     // errorsOnly currently filters only the Markdown presentation of page-level noise;
     // the structured JSON keeps the full finding set for machine consumers.

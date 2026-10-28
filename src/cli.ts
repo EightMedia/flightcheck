@@ -12,6 +12,7 @@ import {
 } from "./crawler/defaults.js";
 import { buildDefaultOutputPaths } from "./crawler/outputPaths.js";
 import { isHttpUrl, normalizeUrl, parseExcludePatterns } from "./crawler/urlUtils.js";
+import { cliFlagsFromArgv, getPackageVersion } from "./version.js";
 
 async function main(): Promise<void> {
   const sanitizedArgv = [...process.argv];
@@ -19,11 +20,14 @@ async function main(): Promise<void> {
   if (separatorIndex >= 2) {
     sanitizedArgv.splice(separatorIndex, 1);
   }
+  const runFlags = cliFlagsFromArgv(sanitizedArgv);
+  const flightcheckVersion = getPackageVersion();
 
   const program = new Command();
 
   program
     .name("flightcheck")
+    .version(flightcheckVersion)
     .description("Crawl a website and generate crawl JSON plus structured report JSON/Markdown.")
     .argument("<startUrl>", "Start URL for the crawl")
     .option("--output <file>", "Output crawl JSON file path")
@@ -94,6 +98,8 @@ async function main(): Promise<void> {
           reportJsonPath: defaultPaths.reportJson,
           errorsOnly,
           siteUrl: normalizedStartUrl,
+          flightcheckVersion,
+          flags: runFlags,
         },
       });
 

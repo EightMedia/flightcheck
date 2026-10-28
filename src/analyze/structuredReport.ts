@@ -1,4 +1,5 @@
 import type { CheckIssue, CheckIssueSeverity } from "../checks/issues.js";
+import { formatCliFlags, getPackageVersion } from "../version.js";
 import type { StackProfile } from "./stack.js";
 import {
   buildReportAnalysis,
@@ -63,7 +64,12 @@ export type FlightcheckReportAnalysis = {
 };
 
 export type FlightcheckReport = {
+  /** Report JSON schema version (not the npm package version). */
   version: typeof FLIGHTCHECK_REPORT_VERSION;
+  /** npm package version of Flightcheck that produced this report. */
+  flightcheckVersion: string;
+  /** CLI argv flags used for this run (after node/script); empty when programmatic without flags. */
+  flags: string[];
   generatedAt: string;
   source: string;
   redirectOnly: boolean;
@@ -536,6 +542,8 @@ function buildAnalysisBlock(
 
 export type BuildStructuredReportOptions = BuildMarkdownOptions & {
   generatedAt?: string;
+  flightcheckVersion?: string;
+  flags?: string[];
 };
 
 export async function buildStructuredReport(
@@ -548,6 +556,8 @@ export async function buildStructuredReport(
   const findings = buildFindings(analysis, tier1);
   return {
     version: FLIGHTCHECK_REPORT_VERSION,
+    flightcheckVersion: options.flightcheckVersion ?? getPackageVersion(),
+    flags: options.flags ?? [],
     generatedAt: options.generatedAt ?? new Date().toISOString(),
     source: sourcePath,
     redirectOnly: analysis.redirectOnly,
@@ -596,6 +606,8 @@ export function renderReportMarkdown(report: FlightcheckReport): string {
     "# Flightcheck report",
     "",
     `Generated: ${report.generatedAt}`,
+    `Flightcheck: ${report.flightcheckVersion}`,
+    `Flags: \`${formatCliFlags(report.flags)}\``,
     `Source: \`${report.source}\``,
     "",
     "## At a glance",

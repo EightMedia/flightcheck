@@ -36,6 +36,8 @@ Without `--output`, paths are derived from the input: `-raw.json` becomes
 ```json
 {
   "version": 1,
+  "flightcheckVersion": "1.0.1",
+  "flags": ["https://example.com", "--quiet"],
   "generatedAt": "2026-10-27T12:00:00.000Z",
   "source": "./flightcheck/example-raw.json",
   "redirectOnly": false,
@@ -86,13 +88,22 @@ includes metadata so consumers can filter or regroup.
 | `template` | Present when `scope` is `template` |
 | `urls` / `count` | Affected pages when relevant |
 
+Header fields:
+
+| Field | Meaning |
+| --- | --- |
+| `version` | Report JSON schema version |
+| `flightcheckVersion` | npm package version that produced the report |
+| `flags` | CLI arguments used for this run (empty when not invoked via CLI) |
+
 ### `*-report.md`
 
 Generated from the JSON. Structure:
 
-1. **At a glance** — page counts and finding totals
-2. **Stack / DNS / redirect** — factual context when available
-3. **Findings** — grouped by severity for reading order, with plain-language titles
+1. Header — generated time, Flightcheck version, flags, source path
+2. **At a glance** — page counts and finding totals
+3. **Stack / DNS / redirect** — factual context when available
+4. **Findings** — grouped by severity for reading order, with plain-language titles
 
 ## Notes
 

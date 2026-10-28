@@ -46,7 +46,12 @@ export type FlightcheckReportAnalysis = {
     reviewPages: ReportReviewPage[];
 };
 export type FlightcheckReport = {
+    /** Report JSON schema version (not the npm package version). */
     version: typeof FLIGHTCHECK_REPORT_VERSION;
+    /** npm package version of Flightcheck that produced this report. */
+    flightcheckVersion: string;
+    /** CLI argv flags used for this run (after node/script); empty when programmatic without flags. */
+    flags: string[];
     generatedAt: string;
     source: string;
     redirectOnly: boolean;
@@ -55,6 +60,8 @@ export type FlightcheckReport = {
 };
 export type BuildStructuredReportOptions = BuildMarkdownOptions & {
     generatedAt?: string;
+    flightcheckVersion?: string;
+    flags?: string[];
 };
 export declare function buildStructuredReport(sourcePath: string, records: ReportRecord[], tier1?: Tier1ReportData, options?: BuildStructuredReportOptions): Promise<FlightcheckReport>;
 /** Human-friendly Markdown rendered from the structured report (single source of truth). */

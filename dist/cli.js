@@ -5,15 +5,19 @@ import { DEFAULT_CHECK_IDS } from "./checks/types.js";
 import { DEFAULT_BURST_DELAY_MS, DEFAULT_CONCURRENCY, DEFAULT_DELAY_MS, DEFAULT_MAX_PAGES, DEFAULT_TIMEOUT_MS, } from "./crawler/defaults.js";
 import { buildDefaultOutputPaths } from "./crawler/outputPaths.js";
 import { isHttpUrl, normalizeUrl, parseExcludePatterns } from "./crawler/urlUtils.js";
+import { cliFlagsFromArgv, getPackageVersion } from "./version.js";
 async function main() {
     const sanitizedArgv = [...process.argv];
     const separatorIndex = sanitizedArgv.indexOf("--");
     if (separatorIndex >= 2) {
         sanitizedArgv.splice(separatorIndex, 1);
     }
+    const runFlags = cliFlagsFromArgv(sanitizedArgv);
+    const flightcheckVersion = getPackageVersion();
     const program = new Command();
     program
         .name("flightcheck")
+        .version(flightcheckVersion)
         .description("Crawl a website and generate crawl JSON plus structured report JSON/Markdown.")
         .argument("<startUrl>", "Start URL for the crawl")
         .option("--output <file>", "Output crawl JSON file path")
@@ -79,6 +83,8 @@ async function main() {
                 reportJsonPath: defaultPaths.reportJson,
                 errorsOnly,
                 siteUrl: normalizedStartUrl,
+                flightcheckVersion,
+                flags: runFlags,
             },
         });
         const crawlResult = outputs.crawl;
