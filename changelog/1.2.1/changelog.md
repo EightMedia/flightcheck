@@ -5,7 +5,7 @@
 - Patch/minor dependency updates (`cheerio`, `commander`, `crawlee`, `pino`, `zod`, `@types/node`, `tsx`, `vitest`).
 - pnpm package manager pin updated to 11.28.13; security overrides moved to `pnpm-workspace.yaml` (pnpm 11.28+).
 - Transitive high-severity advisories mitigated via overrides (`undici`, `lodash`, `ws`, `adm-zip`, `brace-expansion`, `browserslist`, `figlet`, `ip-address`, `nanoid@^3`).
-- Shared PR checks via `EightMedia/ci-workflows` (`health-check: false` for this CLI package).
+- Inline GitHub Actions PR checks (audit, test+build, version/changelog). Shared `EightMedia/ci-workflows` is private and cannot be reused from this public repo.
 
 ## Waarom
 

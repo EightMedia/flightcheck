@@ -6,7 +6,7 @@
 
 - Patch/minor dependency updates and pnpm 11.28.13 pin
 - Transitive high-severity audit findings mitigated via `pnpm-workspace.yaml` overrides
-- PR checks wired to `EightMedia/ci-workflows` (CLI: build + test, no homepage health check)
+- Inline PR checks (audit, test+build, version/changelog); shared `ci-workflows` is private and unusable from this public repo
 
 ## [1.1.0] — 2026-10-28
 
