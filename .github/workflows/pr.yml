@@ -1,0 +1,133 @@
+# Public repo: cannot call private EightMedia/ci-workflows reusable workflows.
+# Inline PR checks mirror the shared suite (audit, build/test, version+changelog).
+name: PR checks
+
+on:
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: pr-checks-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  dependencies:
+    name: Dependencies
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
+        with:
+          node-version-file: .nvmrc
+
+      - name: Enable pnpm
+        run: corepack enable
+
+      - name: Audit production dependencies
+        run: pnpm audit --prod --audit-level high
+
+  build:
+    name: Build and test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
+        with:
+          node-version-file: .nvmrc
+
+      - name: Enable pnpm
+        run: corepack enable
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Test and build
+        run: pnpm test && pnpm build
+
+  release:
+    name: Version and changelog
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    if: ${{ github.event.pull_request.user.login != 'dependabot[bot]' }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Check version bump and changelog
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          node - <<'JS'
+          const { execFileSync } = require("node:child_process");
+          const fs = require("node:fs");
+
+          const git = (...args) =>
+            execFileSync("git", args, { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim();
+          const fail = (msg) => { console.log(`::error::${msg}`); process.exitCode = 1; };
+
+          let base = process.env.BASE_SHA;
+          let head = process.env.HEAD_SHA;
+          if (!base || !head) {
+            head = git("rev-parse", "HEAD");
+            base = git("rev-parse", `origin/${process.env.DEFAULT_BRANCH}`);
+          }
+
+          const changed = git("diff", "--name-only", `${base}...${head}`).split("\n").filter(Boolean);
+          const docsOnly = changed.length > 0 && changed.every(
+            (f) => f.endsWith(".md") || f.startsWith("docs/")
+          );
+          if (docsOnly) {
+            console.log("::notice::Docs-only PR; no version bump required.");
+            process.exit(0);
+          }
+
+          const readVersion = (sha) => {
+            try {
+              return JSON.parse(git("show", `${sha}:package.json`)).version ?? null;
+            } catch {
+              return null;
+            }
+          };
+
+          const parse = (v) => {
+            const m = /^v?(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.-]+))?/.exec(v ?? "");
+            return m ? { core: [+m[1], +m[2], +m[3]], pre: m[4] ? m[4].split(".") : [] } : null;
+          };
+          const compare = (a, b) => {
+            for (let i = 0; i < 3; i++) if (a.core[i] !== b.core[i]) return a.core[i] - b.core[i];
+            if (!a.pre.length || !b.pre.length) return b.pre.length - a.pre.length;
+            return 0;
+          };
+
+          const baseVersion = readVersion(base) ?? "0.0.0";
+          const headVersion = readVersion(head);
+          if (!headVersion) fail('No "version" in package.json.');
+          else if (!parse(headVersion) || !parse(baseVersion)) fail("Invalid semver in package.json.");
+          else if (compare(parse(headVersion), parse(baseVersion)) <= 0) {
+            fail(`Version not bumped: ${process.env.DEFAULT_BRANCH}=${baseVersion}, PR=${headVersion}.`);
+          } else {
+            console.log(`Version: ${baseVersion} → ${headVersion}`);
+          }
+
+          const changelog = `changelog/${headVersion}/changelog.md`;
+          let content = "";
+          try { content = git("show", `${head}:${changelog}`); } catch {}
+          if (!content.trim()) fail(`Changelog missing or empty: ${changelog}.`);
+          else if (!changed.includes(changelog)) fail(`${changelog} exists but was not changed in this PR.`);
+          else console.log(`Changelog: ${changelog}`);
+          JS

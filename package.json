@@ -1,6 +1,6 @@
 {
   "name": "@eightmedia/flightcheck",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Pre-launch website audit: crawl SEO/a11y/security checks and emit structured JSON + Markdown reports.",
   "license": "GPL-3.0",
   "type": "module",
@@ -71,18 +71,18 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "cheerio": "^1.1.2",
-    "commander": "^14.0.1",
-    "crawlee": "^3.15.0",
-    "pino": "^10.1.0",
+    "cheerio": "^1.2.0",
+    "commander": "^14.0.3",
+    "crawlee": "^3.18.2",
+    "pino": "^10.4.0",
     "robots-parser": "^3.0.1",
-    "zod": "^4.1.11"
+    "zod": "^4.6.7"
   },
   "devDependencies": {
-    "@types/node": "^24.5.2",
-    "tsx": "^4.20.6",
+    "@types/node": "^24.19.2",
+    "tsx": "^4.23.15",
     "typescript": "^5.9.3",
-    "vitest": "^4.1.9"
+    "vitest": "^4.1.12"
   },
-  "packageManager": "pnpm@11.5.2+sha512.71c631e382066efc25625d5cf029075de07b61b37f6e27350fbd84b1bda5864c8c1967adc280776b45c30a715c0359a3be08fef42d5bb09e2b99029979692916"
+  "packageManager": "pnpm@11.28.13+sha512.d5caa9cdcd6067ac2902f9f44daa00b1288a73babf1e98f4f375b3a7583b1894b4d49f7527da8f5e1530198bb10e03adba321a1f015429dc2946ce8a7a9a8c65"
 }

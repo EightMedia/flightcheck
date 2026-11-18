@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.2.1] — 2026-11-18
+
+### Changed
+
+- Patch/minor dependency updates and pnpm 11.28.13 pin
+- Transitive high-severity audit findings mitigated via `pnpm-workspace.yaml` overrides
+- Inline PR checks (audit, test+build, version/changelog); shared `ci-workflows` is private and unusable from this public repo
+
 ## [1.1.0] — 2026-10-28
 
 ### Added
