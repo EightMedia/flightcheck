@@ -11,6 +11,10 @@
 - [QC checks plan](./qc-checks-plan.md)
 - [Agent fixes (deprecated)](./agent-fixes.md)
 
+## Maintenance
+
+- [2026-11-18 — weekly maintenance 2026-w47](./maintenance/2026-11-18.md)
+
 ## Changelog
 
 - Package releases: [CHANGELOG.md](../CHANGELOG.md)

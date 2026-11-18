@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.2.1] — 2026-11-18
+
+### Changed
+
+- Patch/minor dependency updates and pnpm 11.28.13 pin
+- Transitive high-severity audit findings mitigated via `pnpm-workspace.yaml` overrides
+- PR checks wired to `EightMedia/ci-workflows` (CLI: build + test, no homepage health check)
+
 ## [1.1.0] — 2026-10-28
 
 ### Added
