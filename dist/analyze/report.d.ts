@@ -57,8 +57,8 @@ declare const recordSchema: z.ZodObject<{
             categories: z.ZodArray<z.ZodString>;
             confidence: z.ZodEnum<{
                 high: "high";
-                medium: "medium";
                 low: "low";
+                medium: "medium";
             }>;
             evidence: z.ZodArray<z.ZodString>;
             website: z.ZodOptional<z.ZodString>;
@@ -85,8 +85,8 @@ declare const recordSchema: z.ZodObject<{
             severity: z.ZodEnum<{
                 critical: "critical";
                 error: "error";
-                warning: "warning";
                 review: "review";
+                warning: "warning";
             }>;
             message: z.ZodString;
         }, z.core.$strip>>;
@@ -97,8 +97,8 @@ declare const recordSchema: z.ZodObject<{
             severity: z.ZodEnum<{
                 critical: "critical";
                 error: "error";
-                warning: "warning";
                 review: "review";
+                warning: "warning";
             }>;
             message: z.ZodString;
         }, z.core.$strip>>;
@@ -161,8 +161,8 @@ export declare const reportSchema: z.ZodArray<z.ZodObject<{
             categories: z.ZodArray<z.ZodString>;
             confidence: z.ZodEnum<{
                 high: "high";
-                medium: "medium";
                 low: "low";
+                medium: "medium";
             }>;
             evidence: z.ZodArray<z.ZodString>;
             website: z.ZodOptional<z.ZodString>;
@@ -189,8 +189,8 @@ export declare const reportSchema: z.ZodArray<z.ZodObject<{
             severity: z.ZodEnum<{
                 critical: "critical";
                 error: "error";
-                warning: "warning";
                 review: "review";
+                warning: "warning";
             }>;
             message: z.ZodString;
         }, z.core.$strip>>;
@@ -201,8 +201,8 @@ export declare const reportSchema: z.ZodArray<z.ZodObject<{
             severity: z.ZodEnum<{
                 critical: "critical";
                 error: "error";
-                warning: "warning";
                 review: "review";
+                warning: "warning";
             }>;
             message: z.ZodString;
         }, z.core.$strip>>;

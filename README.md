@@ -20,7 +20,7 @@ npm install @eightmedia/flightcheck
 # or: yarn add @eightmedia/flightcheck
 ```
 
-Requires Node.js 22+. The package is ESM-only (`"type": "module"`).
+Requires Node.js 22.12+. The package is ESM-only (`"type": "module"`).
 
 ## Use in a Node project
 
