@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.3.0] — 2026-11-23
+
+### Changed
+
+- `commander` 15, `vitest` 5, `typescript` 7, `robots-parser` 3.1.1, pnpm 11.29.0
+- Node engines require `>=22.12.0`
+- TypeScript `rootDir` set to `src`; vite override for patched 8.1.6+
+
 ## [1.2.1] — 2026-11-18
 
 ### Changed

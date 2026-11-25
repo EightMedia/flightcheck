@@ -13,6 +13,7 @@
 
 ## Maintenance
 
+- [2026-11-23 — weekly maintenance 2026-w48](./maintenance/2026-11-23.md)
 - [2026-11-18 — weekly maintenance 2026-w47](./maintenance/2026-11-18.md)
 
 ## Changelog
